@@ -1,0 +1,89 @@
+name: Release
+
+# Release-candidate gate. Triggered on a version tag or manually. Validates
+# migrations apply cleanly + are not drifted, runs the full test + build, checks
+# deployment readiness, then (optionally) triggers the Vercel production deploy.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Migrate-check · Test · Build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: safar_rc
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/safar_rc?sslmode=disable"
+      DIRECT_DATABASE_URL: "postgresql://ci:ci@localhost:5432/safar_rc?sslmode=disable"
+      BETTER_AUTH_SECRET: "ci-better-auth-secret-0123456789abcdef"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+      CRON_SECRET: "ci-cron-secret"
+      LOG_LEVEL: "warn"
+      NODE_ENV: "test"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma generate
+
+      - name: Migrations apply cleanly
+        run: pnpm prisma migrate deploy
+
+      - name: Schema has no un-migrated drift
+        # Fails if prisma/schema.prisma differs from the applied migrations.
+        run: |
+          pnpm prisma migrate diff \
+            --from-migrations ./prisma/migrations \
+            --to-schema-datamodel ./prisma/schema.prisma \
+            --exit-code && echo "No drift." || (echo "::error::Schema drift: create a migration." && exit 1)
+
+      - name: Lint · Typecheck · Test · Build
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm exec vitest run
+          pnpm build
+
+  deploy:
+    name: Deploy (production)
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deployment readiness
+        run: |
+          echo "Validation passed. Production deploy is handled by Vercel's Git"
+          echo "integration on the default branch, OR trigger a deploy hook below."
+      - name: Trigger Vercel deploy hook (if configured)
+        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+      # NOTE: prod `prisma migrate deploy` runs as a Vercel build/deploy step
+      # against DIRECT_DATABASE_URL (the owner role) — see DEPLOYMENT.md §5.3.

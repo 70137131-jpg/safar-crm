@@ -1,0 +1,79 @@
+name: Preview Checks
+
+# Runs on PRs: proves migrations apply to a fresh database, seeds it, and runs
+# the E2E suite against the running app. Complements CI (which only static-checks
+# the schema). Vercel handles the actual preview deployment via its Git integration.
+on:
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrate-and-e2e:
+    name: Migrate · Seed · E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: safar_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/safar_ci?sslmode=disable"
+      DIRECT_DATABASE_URL: "postgresql://ci:ci@localhost:5432/safar_ci?sslmode=disable"
+      BETTER_AUTH_SECRET: "ci-better-auth-secret-0123456789abcdef"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+      CRON_SECRET: "ci-cron-secret"
+      LOG_LEVEL: "warn"
+      NODE_ENV: "test"
+      SEED_ADMIN_EMAIL: "admin@safarcrm.local"
+      SEED_ADMIN_PASSWORD: "ChangeMe-CI-Password-12345"
+      SEED_ADMIN_NAME: "CI Admin"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma generate
+
+      - name: Apply migrations to a fresh DB (migration validation)
+        run: pnpm prisma migrate deploy
+
+      - name: Seed (admin + demo roles + demo data)
+        run: pnpm seed
+
+      - name: Install Playwright (chromium)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E (chromium)
+        run: pnpm exec playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

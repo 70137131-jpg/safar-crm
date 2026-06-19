@@ -1,0 +1,789 @@
+// Safar CRM — Prisma schema (post P0+P1 review).
+// Pair with: ARCHITECTURE.md §7 (data layer), PRD.md §5 (modules).
+//
+// Conventions:
+//   * UUIDs everywhere (Postgres native uuid).
+//   * Money is BigInt paisa. Refunds = negative `amountPaisa` rows (status=PAID).
+//   * Soft delete only on Customer / Lead / Booking via `deletedAt`.
+//     User soft-delete = deactivation via `deactivatedAt`.
+//   * Every temporal column is `@db.Timestamptz(6)`; calendar-only columns are `@db.Date`.
+//   * Optimistic concurrency: `version Int @default(0)` on Customer / Lead / Booking / Quotation.
+//   * Email is case-insensitive (citext).
+//   * Audit table is append-only at the DB role level (granted via raw migration).
+//   * Several constraints (CHECK, partial unique, triggers, BRIN indexes via raw SQL,
+//     append-only grants) are added via the companion raw migration below.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_DATABASE_URL")
+  extensions = [citext]
+}
+
+// =============================================================
+// ENUMS
+// =============================================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  AGENT
+  ACCOUNTANT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUOTATION_SENT
+  NEGOTIATING
+  BOOKED
+  TRAVELLED
+  LOST
+}
+
+/// Purpose of the trip — orthogonal to RouteShape.
+enum TripPurpose {
+  UMRAH
+  HAJJ
+  LEISURE_TOUR
+  BUSINESS
+  FAMILY_VISIT
+  EDUCATION
+  MEDICAL
+  OTHER
+}
+
+/// Shape of the itinerary — orthogonal to TripPurpose.
+enum RouteShape {
+  ONE_WAY
+  ROUND_TRIP
+  MULTI_CITY
+}
+
+enum LostReason {
+  PRICE
+  COMPETITOR
+  NO_RESPONSE
+  CHANGED_PLANS
+  NO_VISA
+  OTHER
+}
+
+enum InteractionType {
+  CALL
+  WHATSAPP
+  EMAIL
+  MEETING
+  NOTE
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+enum TaskType {
+  FOLLOW_UP
+  PASSPORT_EXPIRY
+  PAYMENT_DUE
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  TICKETED
+  COMPLETED
+  CANCELLED
+}
+
+enum CancelReason {
+  CUSTOMER_REQUEST
+  NO_PAYMENT
+  SUPPLIER_ISSUE
+  FORCE_MAJEURE
+  OTHER
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+/// Per-row payment outcome. Refunds are PAID rows with negative amountPaisa.
+/// Aggregate "is this booking PARTIAL/PAID/UNPAID" is computed by service from
+/// SUM(amountPaisa WHERE status='PAID') vs Booking.totalPricePaisa.
+enum PaymentStatus {
+  PAID
+  VOIDED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+enum DocumentType {
+  PASSPORT
+  VISA
+  TICKET
+  INVOICE
+  VOUCHER
+  OTHER
+}
+
+enum PackageStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+// =============================================================
+// MODELS
+// =============================================================
+
+/// Staff account. Better Auth treats this as its user table and adds
+/// `session` / `account` / `verification` tables via its CLI generator.
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique @db.Citext
+  emailVerified   Boolean   @default(false)
+  name            String
+  avatar          String?
+  role            UserRole  @default(AGENT)
+  deactivatedAt   DateTime? @db.Timestamptz(6) /// null = active
+  deactivatedById String?   @db.Uuid
+  lastLoginAt     DateTime? @db.Timestamptz(6)
+  mustChangePassword Boolean @default(false) /// set on admin-create / reset; cleared on change
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  deactivatedBy User?  @relation("UserDeactivatedBy", fields: [deactivatedById], references: [id], onDelete: Restrict)
+  deactivated   User[] @relation("UserDeactivatedBy")
+
+  sessions            Session[]
+  accounts            Account[]
+
+  assignedCustomers   Customer[]           @relation("CustomerAssignedAgent")
+  assignedLeads       Lead[]               @relation("LeadAssignedAgent")
+  createdInteractions Interaction[]
+  assignedTasks       Task[]               @relation("TaskAssignedTo")
+  recordedPayments    Payment[]            @relation("PaymentRecordedBy")
+  uploadedDocuments   Document[]           @relation("DocumentUploadedBy")
+  auditLogs           AuditLog[]           @relation("AuditLogActor")
+  leadStatusEvents    LeadStatusEvent[]    @relation("LeadStatusEventBy")
+  bookingStatusEvents BookingStatusEvent[] @relation("BookingStatusEventBy")
+}
+
+// =============================================================
+// BETTER AUTH TABLES
+// =============================================================
+
+/// Better Auth session table. Stores active sessions.
+model Session {
+  id        String   @id
+  expiresAt DateTime @db.Timestamptz(6)
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Better Auth account table. Stores credentials (email+password) and OAuth providers.
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String    @db.Uuid
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(6)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Better Auth verification table. Stores email verification / password reset tokens.
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime  @db.Timestamptz(6)
+  createdAt  DateTime? @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime? @updatedAt @db.Timestamptz(6)
+}
+
+/// Customer master record. PII fields (passportNo, passportExpiry, dob) are
+/// redacted before logs / Sentry / AuditLog snapshots — see lib/audit/redact.ts.
+model Customer {
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String
+  email           String?   @db.Citext
+  phone           String? /// stored E.164 (e.g. +923001234567)
+  nationality     String?   @db.VarChar(2) /// ISO 3166-1 alpha-2; CHECK regex in raw migration
+  passportNo      String? /// normalised uppercase alphanumeric; CHECK regex in raw migration
+  passportExpiry  DateTime? @db.Date
+  dob             DateTime? @db.Date
+  address         String?
+  notes           String?
+  assignedAgentId String?   @db.Uuid
+  version         Int       @default(0) /// OCC token
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt       DateTime? @db.Timestamptz(6)
+
+  assignedAgent User?         @relation("CustomerAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
+  leads         Lead[]
+  bookings      Booking[]
+  quotations    Quotation[]
+  documents     Document[]
+  interactions  Interaction[]
+  tasks         Task[]
+
+  @@index([assignedAgentId])
+  @@index([passportExpiry])
+  @@index([phone])
+  @@index([email])
+
+  // RAW MIGRATIONS:
+  //   CREATE UNIQUE INDEX customer_email_active_uq
+  //     ON "Customer" (email) WHERE "deletedAt" IS NULL AND email IS NOT NULL;
+  //   CREATE UNIQUE INDEX customer_phone_active_uq
+  //     ON "Customer" (phone) WHERE "deletedAt" IS NULL AND phone IS NOT NULL;
+  //   CREATE INDEX customer_deleted_uq ON "Customer" ("deletedAt") WHERE "deletedAt" IS NOT NULL;
+  //   ALTER TABLE "Customer" ADD CONSTRAINT customer_nationality_iso
+  //     CHECK (nationality IS NULL OR nationality ~ '^[A-Z]{2}$');
+  //   ALTER TABLE "Customer" ADD CONSTRAINT customer_passport_format
+  //     CHECK ("passportNo" IS NULL OR "passportNo" ~ '^[A-Z0-9]{6,12}$');
+}
+
+/// Lead = enquiry. Contact captured directly; Customer link is optional until BOOKED.
+/// tripPurpose and routeShape are orthogonal (a round-trip Umrah is both).
+model Lead {
+  id              String       @id @default(uuid()) @db.Uuid
+  contactName     String
+  contactPhone    String /// E.164
+  contactEmail    String?      @db.Citext
+  customerId      String?      @db.Uuid
+  status          LeadStatus   @default(NEW)
+  source          String?
+  assignedAgentId String?      @db.Uuid
+  destination     String?
+  tripPurpose     TripPurpose?
+  routeShape      RouteShape?
+  pax             Int?         @db.SmallInt
+  budgetPaisa     BigInt?
+  travelDate      DateTime?    @db.Date
+  lostReason      LostReason?
+  lostNotes       String?
+  version         Int          @default(0) /// OCC token
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
+  deletedAt       DateTime?    @db.Timestamptz(6)
+
+  customer      Customer?         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignedAgent User?             @relation("LeadAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
+  interactions  Interaction[]
+  tasks         Task[]
+  quotations    Quotation[]
+  bookings      Booking[]
+  statusEvents  LeadStatusEvent[]
+
+  @@index([customerId])
+  @@index([assignedAgentId])
+  @@index([travelDate])
+  @@index([assignedAgentId, status])
+  @@index([assignedAgentId, status, updatedAt(sort: Desc)])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Lead" ADD CONSTRAINT lead_pax_positive CHECK (pax IS NULL OR pax > 0);
+  //   ALTER TABLE "Lead" ADD CONSTRAINT lead_budget_nonneg
+  //     CHECK ("budgetPaisa" IS NULL OR "budgetPaisa" >= 0);
+  //   ALTER TABLE "Lead" ADD CONSTRAINT lead_lost_reason_when_lost
+  //     CHECK ((status <> 'LOST') OR (status = 'LOST' AND "lostReason" IS NOT NULL));
+  //   CREATE INDEX lead_deleted_idx ON "Lead" ("deletedAt") WHERE "deletedAt" IS NOT NULL;
+}
+
+/// Polymorphic to Lead OR Customer (exactly one parent — enforced via CHECK).
+model Interaction {
+  id          String          @id @default(uuid()) @db.Uuid
+  leadId      String?         @db.Uuid
+  customerId  String?         @db.Uuid
+  type        InteractionType
+  body        String /// capped via CHECK in raw migration
+  occurredAt  DateTime        @default(now()) @db.Timestamptz(6)
+  createdById String          @db.Uuid
+  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
+
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([leadId])
+  @@index([customerId])
+  @@index([createdById])
+  @@index([occurredAt])
+  @@index([leadId, occurredAt(sort: Desc)])
+  @@index([customerId, occurredAt(sort: Desc)])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Interaction" ADD CONSTRAINT interaction_exactly_one_parent
+  //     CHECK ((("leadId" IS NOT NULL)::int + ("customerId" IS NOT NULL)::int) = 1);
+  //   ALTER TABLE "Interaction" ADD CONSTRAINT interaction_body_cap
+  //     CHECK (length(body) <= 20000);
+}
+
+/// Reminders & follow-ups. Polymorphic to Lead / Customer / Booking (at least one).
+/// `reminderSentAt` enforces cron idempotency (ARCHITECTURE.md §2.6).
+model Task {
+  id                     String     @id @default(uuid()) @db.Uuid
+  title                  String
+  dueDate                DateTime   @db.Timestamptz(6)
+  status                 TaskStatus @default(OPEN)
+  type                   TaskType
+  leadId                 String?    @db.Uuid
+  customerId             String?    @db.Uuid
+  bookingId              String?    @db.Uuid
+  assignedToId           String     @db.Uuid
+  reminderSentAt         DateTime?  @db.Timestamptz(6)
+  reminderEmailMessageId String?
+  reminderCount          Int        @default(0)
+  doneAt                 DateTime?  @db.Timestamptz(6)
+  doneById               String?    @db.Uuid
+  createdAt              DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime   @updatedAt @db.Timestamptz(6)
+
+  lead       Lead?     @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  assignedTo User      @relation("TaskAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict)
+
+  @@index([leadId])
+  @@index([customerId])
+  @@index([bookingId])
+  @@index([assignedToId])
+  @@index([dueDate])
+  @@index([assignedToId, status, dueDate])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Task" ADD CONSTRAINT task_has_parent
+  //     CHECK ((("leadId" IS NOT NULL)::int + ("customerId" IS NOT NULL)::int + ("bookingId" IS NOT NULL)::int) >= 1);
+  //   ALTER TABLE "Task" ADD CONSTRAINT task_done_consistency
+  //     CHECK ((status = 'DONE' AND "doneAt" IS NOT NULL) OR (status = 'OPEN' AND "doneAt" IS NULL));
+  //   CREATE UNIQUE INDEX task_passport_expiry_open_uq
+  //     ON "Task" ("customerId") WHERE type = 'PASSPORT_EXPIRY' AND status = 'OPEN' AND "customerId" IS NOT NULL;
+  //   CREATE UNIQUE INDEX task_payment_due_open_uq
+  //     ON "Task" ("bookingId") WHERE type = 'PAYMENT_DUE' AND status = 'OPEN' AND "bookingId" IS NOT NULL;
+}
+
+/// Confirmed trip.
+model Booking {
+  id              String        @id @default(uuid()) @db.Uuid
+  bookingNumber   String        @unique /// human-readable, sequence-driven (BK-YYYY-NNNNNN)
+  customerId      String        @db.Uuid
+  leadId          String?       @db.Uuid
+  packageId       String?       @db.Uuid
+  packageSnapshot Json? /// frozen Package fields at conversion (price, included, etc.)
+  travelDate      DateTime?     @db.Date
+  status          BookingStatus @default(PENDING)
+  totalPricePaisa BigInt
+  notes           String?
+  confirmedAt     DateTime?     @db.Timestamptz(6)
+  ticketedAt      DateTime?     @db.Timestamptz(6)
+  completedAt     DateTime?     @db.Timestamptz(6)
+  cancelReason    CancelReason?
+  cancelNotes     String?
+  cancelledAt     DateTime?     @db.Timestamptz(6)
+  version         Int           @default(0) /// OCC token
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(6)
+  deletedAt       DateTime?     @db.Timestamptz(6)
+
+  customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lead         Lead?                @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  package      Package?             @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  payments     Payment[]
+  invoices     Invoice[]
+  documents    Document[]
+  tasks        Task[]
+  statusEvents BookingStatusEvent[]
+
+  @@index([customerId])
+  @@index([leadId])
+  @@index([packageId])
+  @@index([travelDate])
+  @@index([customerId, status])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Booking" ADD CONSTRAINT booking_total_nonneg CHECK ("totalPricePaisa" >= 0);
+  //   ALTER TABLE "Booking" ADD CONSTRAINT booking_cancel_consistency
+  //     CHECK ((status = 'CANCELLED' AND "cancelledAt" IS NOT NULL AND "cancelReason" IS NOT NULL)
+  //         OR (status <> 'CANCELLED' AND "cancelledAt" IS NULL));
+  //   CREATE SEQUENCE booking_number_seq START 1;
+  //   CREATE INDEX booking_deleted_idx ON "Booking" ("deletedAt") WHERE "deletedAt" IS NOT NULL;
+}
+
+/// Manual payment recording. No payment gateway in v1.
+/// Refunds = PAID rows with NEGATIVE amountPaisa. VOIDED = entered-in-error, excluded from sums.
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  bookingId       String        @db.Uuid
+  amountPaisa     BigInt /// signed; refunds are negative
+  method          PaymentMethod
+  status          PaymentStatus @default(PAID)
+  reference       String?
+  paidAt          DateTime?     @db.Timestamptz(6)
+  recordedById    String        @db.Uuid
+  idempotencyKey  String? /// client-supplied; partial unique in raw migration
+  notes           String?
+  voidedAt        DateTime?     @db.Timestamptz(6)
+  voidedById      String?       @db.Uuid
+  voidReason      String?
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(6)
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  recordedBy User    @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([recordedById])
+  @@index([paidAt])
+  @@index([bookingId, status])
+
+  // RAW MIGRATIONS:
+  //   CREATE UNIQUE INDEX payment_idempotency_uq
+  //     ON "Payment" ("idempotencyKey") WHERE "idempotencyKey" IS NOT NULL;
+  //   ALTER TABLE "Payment" ADD CONSTRAINT payment_voided_consistency
+  //     CHECK ((status = 'VOIDED' AND "voidedAt" IS NOT NULL)
+  //         OR (status = 'PAID'   AND "voidedAt" IS NULL));
+}
+
+/// Quote drafts → sent → accepted/expired.
+/// quoteNumber is NULL until status leaves DRAFT (CHECK + sequence-driven).
+/// Once status leaves DRAFT, total columns are frozen (TRIGGER in raw migration).
+model Quotation {
+  id            String          @id @default(uuid()) @db.Uuid
+  quoteNumber   String?         @unique
+  customerId    String?         @db.Uuid
+  leadId        String?         @db.Uuid
+  validTill     DateTime?       @db.Date
+  subtotalPaisa BigInt          @default(0)
+  taxPaisa      BigInt          @default(0)
+  discountPaisa BigInt          @default(0)
+  totalPaisa    BigInt          @default(0)
+  status        QuotationStatus @default(DRAFT)
+  notes         String?
+  pdfFileKey    String? /// R2 object key for rendered PDF
+  sentAt        DateTime?       @db.Timestamptz(6)
+  issuedAt      DateTime?       @db.Timestamptz(6) /// when quoteNumber was assigned
+  acceptedAt    DateTime?       @db.Timestamptz(6)
+  expiredAt     DateTime?       @db.Timestamptz(6)
+  version       Int             @default(0) /// OCC token
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
+
+  customer Customer?       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lead     Lead?           @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  items    QuotationItem[]
+
+  @@index([customerId])
+  @@index([leadId])
+  @@index([validTill])
+  @@index([sentAt])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Quotation" ADD CONSTRAINT quotation_has_target
+  //     CHECK ((("customerId" IS NOT NULL)::int + ("leadId" IS NOT NULL)::int) >= 1);
+  //   ALTER TABLE "Quotation" ADD CONSTRAINT quotation_totals_nonneg
+  //     CHECK ("subtotalPaisa" >= 0 AND "taxPaisa" >= 0 AND "discountPaisa" >= 0 AND "totalPaisa" >= 0);
+  //   ALTER TABLE "Quotation" ADD CONSTRAINT quotation_number_when_sent
+  //     CHECK ((status = 'DRAFT' AND "quoteNumber" IS NULL)
+  //         OR (status <> 'DRAFT' AND "quoteNumber" IS NOT NULL));
+  //   CREATE SEQUENCE quote_number_seq START 1;
+  //
+  //   -- Freeze totals once the quote leaves DRAFT.
+  //   CREATE OR REPLACE FUNCTION lock_quotation_totals() RETURNS TRIGGER AS $$
+  //   BEGIN
+  //     IF OLD.status <> 'DRAFT' AND (
+  //       NEW."subtotalPaisa" IS DISTINCT FROM OLD."subtotalPaisa" OR
+  //       NEW."taxPaisa"      IS DISTINCT FROM OLD."taxPaisa"      OR
+  //       NEW."discountPaisa" IS DISTINCT FROM OLD."discountPaisa" OR
+  //       NEW."totalPaisa"    IS DISTINCT FROM OLD."totalPaisa"
+  //     ) THEN
+  //       RAISE EXCEPTION 'Quotation totals are immutable after leaving DRAFT';
+  //     END IF;
+  //     RETURN NEW;
+  //   END $$ LANGUAGE plpgsql;
+  //   CREATE TRIGGER quotation_lock_totals
+  //     BEFORE UPDATE ON "Quotation" FOR EACH ROW EXECUTE FUNCTION lock_quotation_totals();
+}
+
+model QuotationItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  quotationId    String   @db.Uuid
+  position       Int      @db.SmallInt /// ordering within quote
+  description    String
+  quantity       Int      @default(1) @db.SmallInt
+  unitPricePaisa BigInt
+  linePaisa      BigInt /// service-set; CHECK enforces linePaisa = quantity * unitPricePaisa
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@unique([quotationId, position])
+  @@index([quotationId])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "QuotationItem" ADD CONSTRAINT quotation_item_amounts
+  //     CHECK (quantity > 0 AND "unitPricePaisa" >= 0
+  //            AND "linePaisa" = "quantity" * "unitPricePaisa");
+}
+
+/// Issued invoice tied to a Booking.
+model Invoice {
+  id            String        @id @default(uuid()) @db.Uuid
+  invoiceNumber String        @unique
+  bookingId     String        @db.Uuid
+  amountPaisa   BigInt
+  status        InvoiceStatus @default(ISSUED)
+  issuedAt      DateTime      @default(now()) @db.Timestamptz(6)
+  paidAt        DateTime?     @db.Timestamptz(6)
+  cancelledAt   DateTime?     @db.Timestamptz(6)
+  notes         String?
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([issuedAt])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Invoice" ADD CONSTRAINT invoice_amount_nonneg CHECK ("amountPaisa" >= 0);
+  //   CREATE SEQUENCE invoice_number_seq START 1;
+}
+
+/// File uploaded to R2. Denorm rule: if `bookingId` is set, `customerId` must also be
+/// set (copied from booking.customerId). Enforced via CHECK.
+/// Downloads must go through /api/documents/[id]/download (audited, 5-min signed URL).
+model Document {
+  id             String       @id @default(uuid()) @db.Uuid
+  customerId     String?      @db.Uuid
+  bookingId      String?      @db.Uuid
+  type           DocumentType
+  fileKey        String       @unique /// R2 object key
+  fileName       String
+  contentType    String
+  sizeBytes      Int
+  checksumSha256 String /// 64 hex chars; CHECK in raw migration
+  expiryDate     DateTime?    @db.Date
+  uploadedById   String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  uploadedBy User      @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([bookingId])
+  @@index([uploadedById])
+  @@index([expiryDate])
+  @@index([customerId, type])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Document" ADD CONSTRAINT document_has_parent
+  //     CHECK ((("customerId" IS NOT NULL)::int + ("bookingId" IS NOT NULL)::int) >= 1);
+  //   ALTER TABLE "Document" ADD CONSTRAINT document_denorm_customer
+  //     CHECK ("bookingId" IS NULL OR "customerId" IS NOT NULL);
+  //   ALTER TABLE "Document" ADD CONSTRAINT document_size_nonneg CHECK ("sizeBytes" >= 0);
+  //   ALTER TABLE "Document" ADD CONSTRAINT document_checksum_format
+  //     CHECK ("checksumSha256" ~ '^[a-f0-9]{64}$');
+}
+
+/// Append-only audit trail. Application DB role has INSERT/SELECT only.
+/// `actorId` nullable so cron / system jobs can write without a user.
+/// `createdAt` is BRIN-indexed (raw migration) — vastly cheaper for append-only time-series.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String /// e.g. "lead.advance", "payment.record"
+  entity    String /// e.g. "Lead", "Payment"
+  entityId  String
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entity, entityId, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+
+  // RAW MIGRATIONS (run as the migration role, NOT crm_app):
+  //   CREATE INDEX audit_log_created_brin ON "AuditLog" USING BRIN ("createdAt");
+  //   REVOKE UPDATE, DELETE ON "AuditLog" FROM crm_app;
+  //   GRANT INSERT, SELECT ON "AuditLog" TO crm_app;
+  //   -- Plan: partition by createdAt monthly once row count > 5M (see runbook).
+}
+
+/// Status transition log for Lead — keeps time-in-stage analytics.
+model LeadStatusEvent {
+  id         String      @id @default(uuid()) @db.Uuid
+  leadId     String      @db.Uuid
+  fromStatus LeadStatus?
+  toStatus   LeadStatus
+  reason     String?
+  byUserId   String      @db.Uuid
+  occurredAt DateTime    @default(now()) @db.Timestamptz(6)
+
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  byUser User @relation("LeadStatusEventBy", fields: [byUserId], references: [id], onDelete: Restrict)
+
+  @@index([leadId, occurredAt])
+  @@index([byUserId])
+}
+
+/// Status transition log for Booking.
+model BookingStatusEvent {
+  id         String         @id @default(uuid()) @db.Uuid
+  bookingId  String         @db.Uuid
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  reason     String?
+  byUserId   String         @db.Uuid
+  occurredAt DateTime       @default(now()) @db.Timestamptz(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  byUser  User    @relation("BookingStatusEventBy", fields: [byUserId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, occurredAt])
+  @@index([byUserId])
+}
+
+/// Agency-wide singleton config. Used by PDFs (quote / invoice).
+model Settings {
+  id                     String   @id @default("singleton")
+  agencyName             String
+  agencyAddress          String?
+  agencyPhone            String?
+  agencyEmail            String?  @db.Citext
+  agencyLogoKey          String? /// R2 key for logo image
+  taxRegistrationNo      String?
+  leadSources            String[] @default([])
+  defaultTaxBps          Int      @default(0) /// basis points, e.g. 1500 = 15%
+  quoteValidDays         Int      @default(14)
+  passportExpiryWarnDays Int      @default(180)
+
+  // Agency profile (added with the Settings + Users admin module)
+  agencyWebsite   String?
+  defaultCurrency String @default("PKR") /// PKR-only in v1; CHECK in raw migration
+  defaultTimezone String @default("Asia/Karachi")
+
+  // Email (Resend) sender identity
+  senderName   String?
+  senderEmail  String?
+  replyToEmail String?
+
+  // Notification toggles + lead times (days before)
+  notifyPassportExpiry    Boolean @default(true)
+  notifyPaymentDue        Boolean @default(true)
+  notifyDailySummary      Boolean @default(false)
+  notifyQuotationExpiry   Boolean @default(true)
+  notifyOverdueTasks      Boolean @default(true)
+  paymentDueWarnDays      Int     @default(7)
+  quotationExpiryWarnDays Int     @default(3)
+  overdueTaskWarnDays     Int     @default(1)
+
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
+
+  // RAW MIGRATION:
+  //   ALTER TABLE "Settings" ADD CONSTRAINT settings_singleton CHECK (id = 'singleton');
+}
+
+/// Optional: package templates for repeatable tours.
+/// Live edits are safe — Booking.packageSnapshot freezes the relevant fields at conversion.
+model Package {
+  id           String        @id @default(uuid()) @db.Uuid
+  title        String
+  destination  String
+  description  String?
+  durationDays Int           @db.SmallInt
+  pricePaisa   BigInt
+  hotel        String?
+  included     String[]      @default([])
+  excluded     String[]      @default([])
+  status       PackageStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+
+  bookings Booking[]
+
+  @@index([destination])
+
+  // RAW MIGRATIONS:
+  //   ALTER TABLE "Package" ADD CONSTRAINT package_duration_pos CHECK ("durationDays" > 0);
+  //   ALTER TABLE "Package" ADD CONSTRAINT package_price_nonneg CHECK ("pricePaisa" >= 0);
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// Transactional email outbox. Services enqueue a row in the SAME transaction
+/// as the triggering mutation; an idempotent drain cron sends via Resend and
+/// marks SENT/FAILED. Emails link to gated download pages — never embed signed
+/// URLs (ARCHITECTURE.md §2.7). `relatedType`/`relatedId` are a loose back-ref.
+model EmailOutbox {
+  id          String      @id @default(uuid()) @db.Uuid
+  toEmail     String
+  subject     String
+  bodyHtml    String
+  status      EmailStatus @default(PENDING)
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(5)
+  relatedType String? /// e.g. "Quotation"
+  relatedId   String?     @db.Uuid
+  lastError   String?
+  scheduledAt DateTime    @default(now()) @db.Timestamptz(6)
+  sentAt      DateTime?   @db.Timestamptz(6)
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+
+  @@index([status, scheduledAt])
+  @@index([relatedType, relatedId])
+}

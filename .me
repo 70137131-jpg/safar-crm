@@ -1,0 +1,31 @@
+# Customers Module Progress
+
+## ✅ Completed
+- **Module Foundation**:
+  - `customers.schemas.ts` — Zod schemas (create, update, search, list, import) with validation.
+  - `customers.types.ts` — DTOs, list item shapes, and paginated wrappers.
+  - `customers.repository.ts` — Pure data access layer (findById, findMany, create, update, softDelete, search, exists checks).
+  - `customers.service.ts` — Business logic, permission enforcement (`requirePermission`), phone normalization, duplicate checks, audit logging (`withAudit`).
+  - `customers.actions.ts` — Next.js Server Actions with Zod validation.
+
+- **UI Pages & Components**:
+  - `app/(app)/customers/page.tsx` — Customers list wrapper.
+  - `app/(app)/customers/CustomerListClient.tsx` — TanStack Table list with responsive mobile cards, pagination, and sorting.
+  - `app/(app)/customers/CustomerForm.tsx` — React Hook Form for Create/Edit.
+  - `app/(app)/customers/new/page.tsx` — Add customer page.
+  - `app/(app)/customers/[id]/page.tsx` & `CustomerDetailClient.tsx` — View customer details with tabs (Overview, Interactions, Bookings, etc.).
+  - `app/(app)/customers/[id]/edit/page.tsx` — Edit customer page.
+  - `app/(app)/customers/import/page.tsx` & `ImportClient.tsx` — CSV import wizard with chunked processing and preview.
+  - `app/(app)/customers/trash/page.tsx` & `TrashClient.tsx` — Trash bin for soft-deleted customers with restore capability.
+
+- **Tests**:
+  - `tests/unit/customers.service.test.ts` — Vitest unit tests for service business logic.
+  - `tests/e2e/customers.spec.ts` — Playwright E2E tests for UI workflows.
+
+## 🚧 What's Left
+- **Type Checking**: Run `pnpm typecheck` to ensure no TypeScript issues.
+- **Build Verification**: Run `pnpm build` to verify the Next.js app builds successfully.
+- **Test Execution**: Run unit (`pnpm vitest`) and e2e (`npx playwright test`) tests to verify the implementation.
+- **Run the app**: Run the application (`pnpm dev`) and manually test out the newly added pages in the browser.
+
+You can also view the detailed task breakdown in the `task.md` artifact.

@@ -1,3 +1,8 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+
 # Logs
 logs
 *.log
@@ -7,12 +12,27 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Next.js
+.next
+.turbo
+out
+next-env.d.ts
+
+# Production
+build
 dist
 dist-ssr
+
+# Environment
+.env
+.env.local
+.env.*.local
 *.local
 
-# Editor directories and files
+# Vercel
+.vercel
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +42,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Testing
+coverage
+playwright-report
+test-results
+
+# Misc
+*.tsbuildinfo
+.prisma/
+
+# Sentry
+.sentryclirc
+
+# OS
+Thumbs.db

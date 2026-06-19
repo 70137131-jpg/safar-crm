@@ -1,0 +1,61 @@
+name: CI
+
+# Quality gate. Fails the build on lint, type, test, schema, or build errors.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    env:
+      # lib/env.ts validates env at import time, so vitest + next build need
+      # parseable (not real) values. No network/DB access happens in CI: app
+      # routes are dynamic (not statically rendered) and repos are mocked in tests.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?sslmode=disable"
+      DIRECT_DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?sslmode=disable"
+      BETTER_AUTH_SECRET: "ci-better-auth-secret-0123456789abcdef"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+      CRON_SECRET: "ci-cron-secret"
+      LOG_LEVEL: "info"
+      NODE_ENV: "test"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma generate
+
+      - name: Validate Prisma schema
+        run: pnpm prisma validate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit + integration tests
+        run: pnpm exec vitest run
+
+      - name: Build
+        run: pnpm build

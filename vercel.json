@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/drain-email-outbox",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sweep-reminders",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sweep-document-expiry",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/sweep-passport-expiry",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/sweep-payment-due",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/sweep-quotation-expiry",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
