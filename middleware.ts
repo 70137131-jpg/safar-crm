@@ -24,8 +24,11 @@ const PROTECTED_PREFIXES = [
   "/settings",
 ];
 
-// Better Auth uses the configured `cookiePrefix` ("safar") + ".session_token"
-const SESSION_COOKIE_NAMES = ["safar.session_token", "safar.session", "better-auth.session_token"];
+// Better Auth names the session cookie `<cookiePrefix>.session_token`
+// ("safar.session_token"). In production it is prefixed with `__Secure-`
+// (useSecureCookies), e.g. `__Secure-safar.session_token`. Match either by
+// suffix so the gate works in both dev and production.
+const SESSION_COOKIE_SUFFIX = "safar.session_token";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -35,7 +38,9 @@ export function middleware(request: NextRequest) {
   );
   if (!requiresAuth) return NextResponse.next();
 
-  const hasSession = SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name));
+  const hasSession = request.cookies
+    .getAll()
+    .some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX));
   if (!hasSession) {
     const url = new URL("/login", request.url);
     url.searchParams.set("from", pathname);
