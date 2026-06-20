@@ -260,7 +260,7 @@ async function seedDemo(): Promise<void> {
     await tx.$executeRawUnsafe(`SELECT setval('quote_number_seq', 1, true)`);
 
     return { customer: customer.name, quote: quotation.quoteNumber, booking: booking.bookingNumber };
-  });
+  }, { timeout: 30_000, maxWait: 15_000 }); // tolerate remote (Neon) latency
 
   log(
     `✔ Seeded demo data: settings, customer "${created.customer}", lead, ` +
