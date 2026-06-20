@@ -33,6 +33,13 @@ export default async function CustomerDetailPage({ params }: Props) {
     canUpload: !!user && can(user, "documents:upload", owner),
     canDelete: !!user && can(user, "documents:delete", owner),
   };
+  const bookingCaps = {
+    canCreate: !!user && can(user, "bookings:create"),
+  };
+  const taskCaps = {
+    canCreate: !!user && can(user, "tasks:create"),
+    canAssign: !!user && can(user, "tasks:assign"),
+  };
 
   return (
     <PageWrapper>
@@ -42,7 +49,12 @@ export default async function CustomerDetailPage({ params }: Props) {
           { label: result.data.name },
         ]}
       />
-      <CustomerDetailClient customer={result.data} docCaps={docCaps} />
+      <CustomerDetailClient
+        customer={result.data}
+        docCaps={docCaps}
+        bookingCaps={bookingCaps}
+        taskCaps={taskCaps}
+      />
     </PageWrapper>
   );
 }

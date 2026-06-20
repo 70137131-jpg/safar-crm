@@ -17,6 +17,7 @@ import {
   History,
   Info,
   Send,
+  ListChecks,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { InteractionType } from "@prisma/client";
@@ -30,6 +31,7 @@ import {
   listInteractionsByLeadAction,
 } from "@/modules/interactions/interactions.actions";
 import { getLeadHistoryAction } from "@/modules/leads/leads.actions";
+import { CreateTaskDialog } from "../../tasks/CreateTaskDialog";
 import type { InteractionDTO } from "@/modules/interactions/interactions.types";
 import type { LeadDTO, LeadStatusEventDTO } from "@/modules/leads/leads.types";
 import {
@@ -72,9 +74,11 @@ function isTabId(v: string | undefined): v is TabId {
 export function LeadDetailClient({
   lead,
   initialTab,
+  taskCaps,
 }: {
   lead: LeadDTO;
   initialTab?: string;
+  taskCaps?: { canCreate: boolean; canAssign: boolean };
 }) {
   const [activeTab, setActiveTab] = useState<TabId>(
     isTabId(initialTab) ? initialTab : "overview",
@@ -107,13 +111,28 @@ export function LeadDetailClient({
               </div>
             </div>
           </div>
-          <Link
-            href={`/leads/${lead.id}/edit` as Route}
-            className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-accent"
-          >
-            <Pencil className="h-4 w-4" />
-            Edit
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {taskCaps?.canCreate && (
+              <CreateTaskDialog
+                canAssign={taskCaps.canAssign}
+                leadId={lead.id}
+                contextLabel={`Lead · ${lead.contactName}`}
+                trigger={(open) => (
+                  <Button variant="outline" onClick={open}>
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    New Task
+                  </Button>
+                )}
+              />
+            )}
+            <Link
+              href={`/leads/${lead.id}/edit` as Route}
+              className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-accent"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

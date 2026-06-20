@@ -115,18 +115,18 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [ ] **Acceptance:** Two concurrent stage transitions: one succeeds, one returns a conflict and refetches.
 
 ### 1.5 Tasks + cron sweeps
-- [ ] Task schema + service + UI (my open tasks, sorted by dueDate).
-- [ ] Manual create from Lead/Customer/Booking context.
-- [ ] Cron `sweep-reminders` (every 15 min): emails due tasks via Resend outbox; idempotent.
-- [ ] Cron `sweep-passport-expiry` (daily 06:00 PKT): creates `Task(type=PASSPORT_EXPIRY)` per `Customer.passportExpiry` in window.
-- [ ] Cron `sweep-payment-due` (daily 07:00 PKT): tasks for unpaid bookings with travel approaching.
-- [ ] Email outbox + drain cron.
-- [ ] **Acceptance:** Running the reminder cron twice in succession produces exactly one email per due task.
+- [x] Task schema + service + UI (my open tasks, sorted by dueDate).
+- [x] Manual create from Lead/Customer/Booking context.
+- [x] Cron `sweep-reminders`: emails due tasks via Resend outbox; idempotent. _(Runs daily on the Vercel Hobby plan rather than every 15 min; claim via `reminderSentAt`.)_
+- [x] Cron `sweep-passport-expiry` (daily): creates `Task(type=PASSPORT_EXPIRY)` per `Customer.passportExpiry` in window.
+- [x] Cron `sweep-payment-due` (daily): tasks for unpaid bookings with travel approaching.
+- [x] Email outbox + drain cron.
+- [x] **Acceptance:** Running the reminder cron twice in succession produces exactly one email per due task.
 
 ### 1.6 Bookings
-- [ ] Schema + service + UI: create, edit, cancel.
-- [ ] Money via `Paisa` bigint; UI input/output in PKR.
-- [ ] **Acceptance:** Cancellation preserves all payment rows; `Booking.status='CANCELLED'`.
+- [x] Schema + service + UI: create, edit, cancel.
+- [x] Money via `Paisa` bigint; UI input/output in PKR.
+- [x] **Acceptance:** Cancellation preserves all payment rows; `Booking.status='CANCELLED'`.
 
 ### 1.7 Payments
 - [ ] Schema + service + UI: record payment, refund.

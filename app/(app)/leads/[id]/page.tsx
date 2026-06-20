@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { getCurrentUser } from "@/lib/auth/session";
+import { can } from "@/lib/permissions";
 import { getLeadAction } from "@/modules/leads/leads.actions";
 import { LeadDetailClient } from "./LeadDetailClient";
 
@@ -22,6 +24,12 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
   const result = await getLeadAction(id);
   if (!result.ok) notFound();
 
+  const user = await getCurrentUser();
+  const taskCaps = {
+    canCreate: !!user && can(user, "tasks:create"),
+    canAssign: !!user && can(user, "tasks:assign"),
+  };
+
   return (
     <PageWrapper>
       <Breadcrumbs
@@ -30,7 +38,7 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
           { label: result.data.contactName },
         ]}
       />
-      <LeadDetailClient lead={result.data} initialTab={tab} />
+      <LeadDetailClient lead={result.data} initialTab={tab} taskCaps={taskCaps} />
     </PageWrapper>
   );
 }

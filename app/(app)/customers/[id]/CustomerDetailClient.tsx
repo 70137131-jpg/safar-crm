@@ -17,12 +17,16 @@ import {
   Briefcase,
   FileText,
   FolderOpen,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/common/EmptyState";
 import { DocumentsPanel } from "@/components/documents/DocumentsPanel";
 import type { CustomerDTO } from "@/modules/customers/customers.types";
 import { toWhatsAppLink } from "@/lib/phone/normalize";
+import { CustomerBookingsTab } from "./CustomerBookingsTab";
+import { Button } from "@/components/ui/button";
+import { CreateTaskDialog } from "../../tasks/CreateTaskDialog";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -62,9 +66,16 @@ type TabId = (typeof TABS)[number]["id"];
 interface Props {
   customer: CustomerDTO;
   docCaps?: { canUpload: boolean; canDelete: boolean };
+  bookingCaps?: { canCreate: boolean };
+  taskCaps?: { canCreate: boolean; canAssign: boolean };
 }
 
-export function CustomerDetailClient({ customer, docCaps }: Props) {
+export function CustomerDetailClient({
+  customer,
+  docCaps,
+  bookingCaps,
+  taskCaps,
+}: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   return (
@@ -91,13 +102,28 @@ export function CustomerDetailClient({ customer, docCaps }: Props) {
               </div>
             </div>
           </div>
-          <Link
-            href={`/customers/${customer.id}/edit` as Route}
-            className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-accent"
-          >
-            <Pencil className="h-4 w-4" />
-            Edit
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {taskCaps?.canCreate && (
+              <CreateTaskDialog
+                canAssign={taskCaps.canAssign}
+                customerId={customer.id}
+                contextLabel={`Customer · ${customer.name}`}
+                trigger={(open) => (
+                  <Button variant="outline" onClick={open}>
+                    <ListChecks className="mr-2 h-4 w-4" />
+                    New Task
+                  </Button>
+                )}
+              />
+            )}
+            <Link
+              href={`/customers/${customer.id}/edit` as Route}
+              className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-accent"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Link>
+          </div>
         </div>
 
         {/* Contact info grid */}
@@ -218,10 +244,9 @@ export function CustomerDetailClient({ customer, docCaps }: Props) {
           />
         )}
         {activeTab === "bookings" && (
-          <EmptyState
-            icon={<Briefcase className="h-8 w-8" />}
-            title="No bookings yet"
-            description="Bookings linked to this customer will appear here."
+          <CustomerBookingsTab
+            customerId={customer.id}
+            canCreate={bookingCaps?.canCreate ?? false}
           />
         )}
         {activeTab === "quotations" && (
