@@ -3,11 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/drain-email-outbox",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/sweep-reminders",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/sweep-document-expiry",
