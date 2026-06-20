@@ -1,8 +1,11 @@
-allowBuilds:
-  '@prisma/client': set this to true or false
-  '@prisma/engines': set this to true or false
-  '@sentry/cli': set this to true or false
-  esbuild: set this to true or false
-  prisma: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+# Not a monorepo — this file exists only to approve dependency build scripts
+# (pnpm 10+ blocks them by default). pnpm 10/11's home for this setting is here,
+# not package.json. No `packages:` field on purpose (single app at the root).
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@sentry/cli'
+  - esbuild
+  - prisma
+  - sharp
+  - unrs-resolver
