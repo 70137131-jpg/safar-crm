@@ -10,6 +10,7 @@ import type {
   CreateUserInput,
   ListUsersInput,
   ResetPasswordInput,
+  SignUpInput,
   UpdateProfileInput,
   UpdateUserInput,
 } from "./users.schemas";
@@ -125,6 +126,56 @@ export async function getProfile(user: UserContext): Promise<UserDTO> {
   const record = await repo.findById(user.id);
   if (!record) throw new NotFoundError("User not found");
   return toDTO(record);
+}
+
+// ─── Public self-registration ────────────────────────────────────────────────
+
+/**
+ * Public sign-up (unauthenticated). Creates a DEACTIVATED account that an admin
+ * must activate (Settings → Users → Reactivate) before the person can sign in.
+ *
+ * Security: NO permission check (public flow), but the role is hard-forced to
+ * AGENT — never taken from client input — and the account has no access until
+ * approved. Mirrors the admin-create credential path (no session is created, so
+ * the new user is not auto-signed-in).
+ */
+export async function selfRegister(
+  input: SignUpInput,
+  meta?: { ip?: string; userAgent?: string },
+): Promise<{ email: string }> {
+  if (await repo.existsByEmail(input.email)) {
+    throw new ConflictError("An account with this email already exists");
+  }
+
+  const hashedPassword = await hashPassword(input.password);
+
+  await withAudit(
+    {
+      actorId: null, // system / self-registration
+      action: "user.self_register",
+      entity: "User",
+      before: null,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      entityIdFromResult: (r: UserDTO) => r.id,
+    },
+    async (tx) =>
+      toDTO(
+        await repo.createWithCredential(
+          {
+            name: input.name,
+            email: input.email,
+            role: "AGENT", // never client-chosen
+            hashedPassword,
+            mustChangePassword: false,
+            deactivatedAt: new Date(), // pending admin approval — no access yet
+          },
+          tx,
+        ),
+      ),
+  );
+
+  return { email: input.email };
 }
 
 // ─── Admin mutations ─────────────────────────────────────────────────────────

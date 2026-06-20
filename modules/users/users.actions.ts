@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { requireUser } from "@/lib/auth/session";
 import { serverAction } from "@/lib/errors";
 import {
@@ -8,11 +9,28 @@ import {
   createUserSchema,
   listUsersSchema,
   resetPasswordSchema,
+  signUpSchema,
   updateProfileSchema,
   updateUserSchema,
 } from "./users.schemas";
 import type { AssignableAgent, PaginatedResult, UserDTO } from "./users.types";
 import * as service from "./users.service";
+
+/**
+ * PUBLIC self-registration — no `requireUser`/permission (unauthenticated flow).
+ * Creates a DEACTIVATED AGENT account pending admin approval.
+ */
+export const signUpAction = serverAction(
+  "users.selfRegister",
+  async (input: Record<string, unknown>): Promise<{ email: string }> => {
+    const parsed = signUpSchema.parse(input);
+    const hdrs = await headers();
+    return service.selfRegister(parsed, {
+      ip: hdrs.get("x-forwarded-for") ?? undefined,
+      userAgent: hdrs.get("user-agent") ?? undefined,
+    });
+  },
+);
 
 export const listAssignableAgentsAction = serverAction(
   "users.listAssignableAgents",

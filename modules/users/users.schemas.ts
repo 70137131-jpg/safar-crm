@@ -46,6 +46,17 @@ export const createUserSchema = z.object({
 });
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
+/**
+ * Public self-registration. No role field — the server forces AGENT and creates
+ * the account DEACTIVATED, pending admin approval (Settings → Users).
+ */
+export const signUpSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  password: strongPasswordSchema,
+});
+export type SignUpInput = z.infer<typeof signUpSchema>;
+
 export const updateUserSchema = z.object({
   name: nameSchema,
   avatar: avatarSchema,

@@ -105,6 +105,8 @@ export interface CreateUserData {
   role: UserRole;
   hashedPassword: string;
   mustChangePassword: boolean;
+  /** Set to create the account in a deactivated state (e.g. self-signup pending approval). */
+  deactivatedAt?: Date | null;
 }
 
 /** Creates the User row + its Better Auth credential Account in one tx. */
@@ -116,6 +118,7 @@ export async function createWithCredential(data: CreateUserData, tx: TxClient = 
       role: data.role,
       emailVerified: false,
       mustChangePassword: data.mustChangePassword,
+      deactivatedAt: data.deactivatedAt ?? null,
     },
     select: USER_SELECT,
   });

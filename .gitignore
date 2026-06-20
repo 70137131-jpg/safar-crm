@@ -57,3 +57,4 @@ test-results
 
 # OS
 Thumbs.db
+.env*
