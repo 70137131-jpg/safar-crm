@@ -129,10 +129,10 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] **Acceptance:** Cancellation preserves all payment rows; `Booking.status='CANCELLED'`.
 
 ### 1.7 Payments
-- [ ] Schema + service + UI: record payment, refund.
-- [ ] Balance-due computation as derived field (no stored aggregate).
-- [ ] AGENT restricted to CASH on own bookings only.
-- [ ] **Acceptance:** Balance correct after a refund (original PAID row unchanged, REFUNDED row added).
+- [x] Schema + service + UI: record payment, refund.
+- [x] Balance-due computation as derived field (no stored aggregate).
+- [x] AGENT restricted to CASH on own bookings only.
+- [x] **Acceptance:** Balance correct after a refund (original PAID row unchanged, REFUNDED row added).
 
 ### 1.8 Quotations + PDF
 - [ ] Schema + service + UI: draft → send → accepted/expired.

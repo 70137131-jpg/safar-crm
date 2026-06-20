@@ -1,17 +1,20 @@
-import { CreditCard } from "lucide-react";
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { EmptyState } from "@/components/common/EmptyState";
+import { PaymentsFinderClient } from "./PaymentsFinderClient";
+
+export const metadata: Metadata = {
+  title: "Payments",
+};
 
 export default function PaymentsPage() {
   return (
     <PageWrapper>
-      <PageHeader title="Payments" description="Manual receipts and balance tracking." />
-      <EmptyState
-        icon={<CreditCard className="h-8 w-8" />}
-        title="Payments module not built yet"
-        description="Implementation in Phase 1.7 (TASKS.md)."
+      <PageHeader
+        title="Payments"
+        description="Find a booking to record receipts, refunds and track its balance."
       />
+      <PaymentsFinderClient />
     </PageWrapper>
   );
 }

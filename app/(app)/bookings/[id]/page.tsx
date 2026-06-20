@@ -9,6 +9,7 @@ import { BookingDetailClient } from "./BookingDetailClient";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -17,8 +18,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: result.ok ? result.data.bookingNumber : "Booking" };
 }
 
-export default async function BookingDetailPage({ params }: Props) {
+export default async function BookingDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { tab } = await searchParams;
   const result = await getBookingAction(id);
   if (!result.ok) notFound();
 
@@ -30,6 +32,11 @@ export default async function BookingDetailPage({ params }: Props) {
     canCancel: !!user && can(user, "bookings:cancel", owner),
     canCreateTask: !!user && can(user, "tasks:create"),
     canAssignTask: !!user && can(user, "tasks:assign"),
+  };
+  const paymentCaps = {
+    canRecord: !!user && can(user, "payments:create"),
+    canRefund: !!user && can(user, "payments:refund"),
+    cashOnly: user?.role === "AGENT",
   };
 
   return (
@@ -44,6 +51,8 @@ export default async function BookingDetailPage({ params }: Props) {
         key={result.data.id}
         booking={result.data}
         caps={caps}
+        paymentCaps={paymentCaps}
+        initialTab={tab}
       />
     </PageWrapper>
   );

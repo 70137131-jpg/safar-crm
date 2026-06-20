@@ -43,6 +43,7 @@ import type {
   BookingStatusEventDTO,
 } from "@/modules/bookings/bookings.types";
 import { CreateTaskDialog } from "../../tasks/CreateTaskDialog";
+import { PaymentsPanel, type PaymentCaps } from "./PaymentsPanel";
 import {
   BOOKING_STATUS_META,
   BOOKING_ADVANCE_ACTION,
@@ -59,13 +60,20 @@ const textareaCls =
 
 const TABS = [
   { id: "overview", label: "Overview", icon: Info },
+  { id: "payments", label: "Payments", icon: Wallet },
   { id: "history", label: "History", icon: History },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
+function isTabId(v: string | undefined): v is TabId {
+  return v === "overview" || v === "payments" || v === "history";
+}
+
 export function BookingDetailClient({
   booking: initial,
   caps,
+  paymentCaps,
+  initialTab,
 }: {
   booking: BookingDTO;
   caps: {
@@ -74,13 +82,17 @@ export function BookingDetailClient({
     canCreateTask: boolean;
     canAssignTask: boolean;
   };
+  paymentCaps: PaymentCaps;
+  initialTab?: string;
 }) {
   const router = useRouter();
   // Local source of truth: seeded from the server prop and updated optimistically
   // from each action's returned DTO. The detail page remounts this component via
   // `key={booking.id}`, so navigating between bookings re-seeds it correctly.
   const [booking, setBooking] = useState<BookingDTO>(initial);
-  const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [activeTab, setActiveTab] = useState<TabId>(
+    isTabId(initialTab) ? initialTab : "overview",
+  );
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const refetch = useCallback(async () => {
@@ -254,6 +266,13 @@ export function BookingDetailClient({
 
       <div className="min-h-[160px]">
         {activeTab === "overview" && <Overview booking={booking} />}
+        {activeTab === "payments" && (
+          <PaymentsPanel
+            bookingId={booking.id}
+            bookingStatus={booking.status}
+            caps={paymentCaps}
+          />
+        )}
         {activeTab === "history" && <HistoryTab bookingId={booking.id} />}
       </div>
 
