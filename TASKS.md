@@ -135,12 +135,12 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] **Acceptance:** Balance correct after a refund (original PAID row unchanged, REFUNDED row added).
 
 ### 1.8 Quotations + PDF
-- [ ] Schema + service + UI: draft → send → accepted/expired.
-- [ ] Numbering at `SENT` via Postgres sequence.
-- [ ] React PDF template (uses settings.agencyProfile).
-- [ ] Quotation email via Resend outbox; PDF stored in R2.
-- [ ] Cron `sweep-quotation-expiry` daily 08:00 PKT.
-- [ ] **Acceptance:** 50 concurrent `SEND` operations produce 50 unique sequential numbers, no duplicates.
+- [x] Schema + service + UI: draft → send → accepted/expired.
+- [x] Numbering at `SENT` via Postgres sequence.
+- [x] React PDF template (uses settings.agencyProfile).
+- [x] Quotation email via Resend outbox; PDF stored in R2.
+- [x] Cron `sweep-quotation-expiry` (daily on the Vercel Hobby plan).
+- [x] **Acceptance:** 50 concurrent `SEND` operations produce 50 unique sequential numbers, no duplicates.
 
 ### 1.9 Documents (basic)
 - [ ] Schema + service + UI: upload (presigned PUT), list per customer/booking.

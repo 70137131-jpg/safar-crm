@@ -40,6 +40,9 @@ export default async function CustomerDetailPage({ params }: Props) {
     canCreate: !!user && can(user, "tasks:create"),
     canAssign: !!user && can(user, "tasks:assign"),
   };
+  const quotationCaps = {
+    canCreate: !!user && can(user, "quotations:create"),
+  };
 
   return (
     <PageWrapper>
@@ -54,6 +57,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         docCaps={docCaps}
         bookingCaps={bookingCaps}
         taskCaps={taskCaps}
+        quotationCaps={quotationCaps}
       />
     </PageWrapper>
   );

@@ -25,6 +25,7 @@ import { DocumentsPanel } from "@/components/documents/DocumentsPanel";
 import type { CustomerDTO } from "@/modules/customers/customers.types";
 import { toWhatsAppLink } from "@/lib/phone/normalize";
 import { CustomerBookingsTab } from "./CustomerBookingsTab";
+import { CustomerQuotationsTab } from "./CustomerQuotationsTab";
 import { Button } from "@/components/ui/button";
 import { CreateTaskDialog } from "../../tasks/CreateTaskDialog";
 
@@ -68,6 +69,7 @@ interface Props {
   docCaps?: { canUpload: boolean; canDelete: boolean };
   bookingCaps?: { canCreate: boolean };
   taskCaps?: { canCreate: boolean; canAssign: boolean };
+  quotationCaps?: { canCreate: boolean };
 }
 
 export function CustomerDetailClient({
@@ -75,6 +77,7 @@ export function CustomerDetailClient({
   docCaps,
   bookingCaps,
   taskCaps,
+  quotationCaps,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
 
@@ -250,10 +253,9 @@ export function CustomerDetailClient({
           />
         )}
         {activeTab === "quotations" && (
-          <EmptyState
-            icon={<FileText className="h-8 w-8" />}
-            title="No quotations yet"
-            description="Quotations for this customer will appear here."
+          <CustomerQuotationsTab
+            customerId={customer.id}
+            canCreate={quotationCaps?.canCreate ?? false}
           />
         )}
         {activeTab === "documents" && (

@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { add, sub, mulBps, formatPKR } from "@/lib/money/paisa";
 import { nextDocumentNumber } from "@/lib/numbering/numbering";
 import { enqueueEmail } from "@/lib/email/outbox";
-import { uploadFile } from "@/lib/storage/r2";
+import { uploadFile, createSignedDownloadUrl } from "@/lib/storage/r2";
 import * as customersService from "@/modules/customers/customers.service";
 import * as leadsService from "@/modules/leads/leads.service";
 import { getAgencyProfile } from "@/modules/settings/settings.service";
@@ -142,6 +142,40 @@ export async function getQuotation(user: UserContext, id: string): Promise<Quota
     throw new NotFoundError("Quotation not found");
   }
   return toDTO(record);
+}
+
+/**
+ * Mint a fresh 5-minute signed URL for the stored quotation PDF. Permission +
+ * ownership + existence flow through `getQuotation`; the access is audited. The
+ * URL is route-mediated and never persisted (ARCHITECTURE.md §2.7).
+ */
+export async function getQuotationPdfUrl(
+  user: UserContext,
+  id: string,
+  opts?: { disposition?: "attachment" | "inline" },
+): Promise<{ url: string; fileName: string }> {
+  const record = await getQuotation(user, id);
+  if (!record.pdfFileKey) {
+    throw new NotFoundError("No PDF is available yet — send the quotation first.");
+  }
+  const fileName = `${record.quoteNumber ?? "quotation"}.pdf`;
+  const url = await createSignedDownloadUrl({
+    key: record.pdfFileKey,
+    fileName,
+    contentType: "application/pdf",
+    disposition: opts?.disposition ?? "attachment",
+  });
+  await logAudit({
+    actorId: user.id,
+    action: "quotation.download",
+    entity: "Quotation",
+    entityId: id,
+    before: null,
+    after: { quoteNumber: record.quoteNumber },
+    ip: user.ip,
+    userAgent: user.userAgent,
+  });
+  return { url, fileName };
 }
 
 export async function listQuotations(
