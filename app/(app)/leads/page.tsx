@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { requireUser } from "@/lib/auth/session";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { LeadsClient } from "./LeadsClient";
 
 export const metadata: Metadata = { title: "Leads" };
 
-export default function LeadsPage() {
+export default async function LeadsPage() {
+  // AGENTs only ever see their own leads, so the "filter by agent" control is
+  // only meaningful for ADMIN/MANAGER.
+  const user = await requireUser();
+  const canFilterByAgent = user.role === "ADMIN" || user.role === "MANAGER";
+
   return (
     <PageWrapper>
       <PageHeader
@@ -23,7 +30,10 @@ export default function LeadsPage() {
           </Link>
         }
       />
-      <LeadsClient />
+      {/* useSearchParams() in the client tree requires a Suspense boundary. */}
+      <Suspense fallback={null}>
+        <LeadsClient canFilterByAgent={canFilterByAgent} />
+      </Suspense>
     </PageWrapper>
   );
 }

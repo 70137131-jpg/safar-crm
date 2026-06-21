@@ -85,34 +85,36 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 ## Phase 1 — MVP modules (build in this order)
 
 ### 1.1 Users (admin)
-- [ ] `users` module (actions, service, repository, schemas, permissions, ui).
-- [ ] Invite flow: invite email, set-password page, activation.
-- [ ] Deactivation with active-records guard (must reassign first).
-- [ ] **Acceptance:** permission matrix test passes; deactivation gated by open leads.
+- [x] `users` module (actions, service, repository, schemas, permissions, ui).
+- [~] Onboarding: admin-create with temporary password (`mustChangePassword`) + public self-registration pending admin approval. _(Deviation from the original "email invite + set-password page": no invite-token/email flow was built — a temp-password + admin-approval model is used instead. Decide whether to keep this or add email invites.)_
+- [x] Deactivation with active-records guard — blocked while the user owns open (non-terminal) leads; admin must reassign first. Enforced in both `deactivateUser` and `updateUser` (going inactive).
+- [x] **Acceptance:** permission matrix test passes (`tests/unit/permissions.test.ts`); deactivation gated by open leads (`tests/unit/users.deactivation.test.ts`).
 
 ### 1.2 Customers
-- [ ] Schema + repository + service + actions + Zod schemas.
-- [ ] CRUD UI: list (TanStack Table), detail, create/edit form.
-- [ ] Search by name/phone/email/passport-last4.
-- [ ] PII redaction confirmed in logs and audit JSON.
-- [ ] Soft delete & restore (ADMIN).
-- [ ] **Acceptance:** AGENT cannot fetch a non-owned customer by direct ID. Audit JSON shows passport last-4 only.
+- [x] Schema + repository + service + actions + Zod schemas.
+- [x] CRUD UI: list (TanStack Table), detail, create/edit form.
+- [x] Search by name/phone/email/passport-last4 (`customers.repository.search` — passport matched by `endsWith`).
+- [x] PII redaction confirmed in logs and audit JSON (`redactPII` masks `passportNo` to last-4; strips `dob`/`passportExpiry`/file keys).
+- [x] Soft delete & restore (ADMIN) — `deletedAt` filtered at the repository; restore re-checks email/phone collisions.
+- [x] **Acceptance:** AGENT cannot fetch a non-owned customer by direct ID (`getCustomer` → NotFound; covered in `tests/unit/customers.service.test.ts`). Audit JSON shows passport last-4 only.
 
 ### 1.3 Customer import (CSV/XLSX)
-- [ ] Streamed parser; per-row Zod validation; chunked insert with savepoints.
-- [ ] `ImportRun` table; UI for status + error-report download.
-- [ ] Limits: 25 MB file, 50k rows.
-- [ ] **Acceptance:** A file with 100 valid + 5 malformed rows imports 100 and reports the 5 with line numbers.
+- [x] CSV parser (`papaparse`); per-row Zod validation (in the action); chunked insert (200) with a **SAVEPOINT per row** so one bad row rolls back alone (`tests/unit/customers.service.test.ts`).
+- [~] `ImportRun` table; UI for status + error-report download. _(Error-report **download** done — rejected rows export to CSV in the result step. The persistent `ImportRun` history table is **not** built — it needs a Prisma/Neon migration; pending go-ahead.)_
+- [x] Limits: 25 MB file, 50k rows — enforced client-side and server-side (`MAX_IMPORT_ROWS`).
+- [~] XLSX import — **not** built (needs the `exceljs` dependency); CSV only for now, XLSX uploads are rejected with a clear message.
+- [x] **Acceptance:** A file with 100 valid + 5 malformed rows imports 100 and reports the 5 with line numbers (malformed rows fail Zod in the action and are reported with their row number).
 
 ### 1.4 Leads (kanban + list) & interactions
-- [ ] Lead schema, service, actions, schemas.
-- [ ] Kanban UI (mobile-friendly: horizontal scroll + tap-to-move at <640px) with optimistic concurrency.
-- [ ] List view (TanStack Table) with the same filters.
-- [ ] Lead create form optimized for mobile (≤10s entry).
-- [ ] Lead-to-booking conversion (atomic: create/link Customer + Booking + interaction trail).
-- [ ] Interaction module: log call/whatsapp/email/meeting/note; polymorphic FK constraint (DB check).
-- [ ] `wa.me` button creates an Interaction and opens the link.
-- [ ] **Acceptance:** Two concurrent stage transitions: one succeeds, one returns a conflict and refetches.
+- [x] Lead schema, service, actions, schemas (travel-domain `LeadStatus`, OCC via `version`, audited).
+- [x] Kanban UI (mobile-friendly: horizontal scroll + tap-to-move at <640px) with optimistic concurrency. Added: optimistic drag-and-drop with rollback on failure + per-column lead count and total pipeline value.
+- [x] List view with the same filters — stage / source / assigned-agent filters, sortable columns (created / travel date / budget), URL-synced filters, server-side pagination, bulk selection + bulk delete. _(Hand-built table extended in place rather than rewritten to TanStack like the customers/users lists — same filters/sort/pagination semantics.)_
+- [x] Lead create form optimized for mobile (≤10s entry).
+- [x] Lead-to-booking conversion (atomic: create/link Customer + Booking + interaction trail).
+- [x] Interaction module: log call/whatsapp/email/meeting/note; polymorphic FK constraint (DB check).
+- [x] `wa.me` button creates an Interaction and opens the link (`LeadCard`).
+- [x] **Acceptance:** Two concurrent stage transitions: one succeeds, one returns a conflict and refetches — service raises `ConflictError` on a stale `version` (`tests/unit/leads.service.test.ts` "raises ConflictError on a stale version (OCC)"); the UI refetches on `CONFLICT` (kanban rolls back the optimistic move, list/kanban refetch).
+- [~] _Not built:_ lead-source list comes from free text (the Settings → lead-source editor is §1.11); bulk selection is desktop-only; interaction timeline is not yet paginated.
 
 ### 1.5 Tasks + cron sweeps
 - [x] Task schema + service + UI (my open tasks, sorted by dueDate).
@@ -143,15 +145,15 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] **Acceptance:** 50 concurrent `SEND` operations produce 50 unique sequential numbers, no duplicates.
 
 ### 1.9 Documents (basic)
-- [ ] Schema + service + UI: upload (presigned PUT), list per customer/booking.
-- [ ] Download route with permission check + audit + 5-min signed URL.
-- [ ] SHA-256 checksum verified before recording the `Document` row.
-- [ ] **Acceptance:** Unauthorized download returns 403 AND writes an audit row with the attempted access.
+- [x] Schema + service + UI: upload (presigned PUT), list per customer/booking. `DocumentsPanel` is mounted on the customer detail "Documents" tab; it accepts `bookingId` for the booking detail page too.
+- [x] Download route with permission check + audit + 5-min signed URL (`app/api/documents/[id]/download/route.ts` → service `getDownloadUrl`).
+- [x] SHA-256 checksum verified before recording the `Document` row — the presigned PUT is now signed with `x-amz-checksum-sha256`, so **R2 rejects the upload unless the bytes hash to the declared value**; the row is only recorded after the object lands. _(Deploy note: the R2 bucket CORS `AllowedHeaders` must include `x-amz-checksum-sha256` — see `modules/documents/README.md`. Cannot be verified against live R2 from here.)_
+- [x] **Acceptance:** Unauthorized download returns 403 AND writes an audit row with the attempted access (`document.download.denied`) — covered by `tests/unit/documents.service.test.ts` and `tests/e2e/documents.spec.ts`.
 
 ### 1.10 Dashboard
-- [ ] KPI cards (active enquiries, conversion, revenue, upcoming travel, expiring passports).
-- [ ] Recharts: monthly bookings & revenue; top destinations.
-- [ ] Role-aware data scoping (AGENT sees own).
+- [x] KPI cards (active enquiries, conversion, revenue, upcoming travel, expiring passports) — `app/(app)/dashboard/DashboardStats.tsx`. Window definitions mirror the reports overview (active = not BOOKED/TRAVELLED/LOST; conversion = (BOOKED+TRAVELLED)/all leads; revenue = positive PAID payments; upcoming travel = CONFIRMED/TICKETED within 30 days; expiring passports = within 180 days).
+- [x] Recharts: monthly bookings & revenue (`MonthlyTrends.tsx` → `ComposedChart`, last 6 months); top destinations by booking revenue (`TopDestinations.tsx` → horizontal bar, last 12 months, destination read via `booking.lead.destination`). Chart primitives are client components in `DashboardCharts.tsx`; money crosses the boundary pre-converted to PKR numbers (never BigInt).
+- [x] Role-aware data scoping (AGENT sees own) — every widget query applies `dashboardScope(user)` (`app/(app)/dashboard/scope.ts`); covered by `tests/unit/dashboard-scope.test.ts`. Dashboard module services remain intentional stubs (read-only, queries `db` directly per `ARCHITECTURE.md §5.12`).
 
 ### 1.11 Settings
 - [ ] Agency profile (name, address, logo, tax id) editor (ADMIN).

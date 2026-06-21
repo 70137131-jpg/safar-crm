@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/permissions";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { withAudit } from "@/lib/audit";
 import { auth } from "@/lib/auth/server";
+import * as leadsService from "@/modules/leads/leads.service";
 import * as repo from "./users.repository";
 import type {
   ChangePasswordInput,
@@ -82,6 +83,21 @@ async function assertNotLastAdmin(
   const others = await repo.countActiveAdmins({ excludeId: target.id });
   if (others === 0) {
     throw new ValidationError("Cannot remove the last active administrator");
+  }
+}
+
+/**
+ * Blocks deactivation while the user still owns open leads. The admin must
+ * reassign the pipeline first (Leads → reassign) so nothing is orphaned.
+ * (TASKS.md §1.1 — "deactivation gated by open leads".)
+ */
+async function assertNoOpenAssignments(userId: string): Promise<void> {
+  const openLeads = await leadsService.countOpenLeadsForAgent(userId);
+  if (openLeads > 0) {
+    throw new ConflictError(
+      `This user still has ${openLeads} open lead${openLeads === 1 ? "" : "s"} assigned. ` +
+        `Reassign them before deactivating.`,
+    );
   }
 }
 
@@ -227,9 +243,12 @@ export async function updateUser(
 
   await assertNotLastAdmin(existing, { role: input.role, isActive: input.isActive });
 
-  const before = toDTO(existing);
   const goingInactive = existing.deactivatedAt === null && !input.isActive;
   const goingActive = existing.deactivatedAt !== null && input.isActive;
+
+  if (goingInactive) await assertNoOpenAssignments(existing.id);
+
+  const before = toDTO(existing);
 
   return withAudit(
     {
@@ -267,6 +286,7 @@ export async function deactivateUser(user: UserContext, id: string): Promise<Use
   if (existing.id === user.id) throw new ForbiddenError("You cannot deactivate your own account");
 
   await assertNotLastAdmin(existing, { role: existing.role, isActive: false });
+  await assertNoOpenAssignments(existing.id);
 
   const before = toDTO(existing);
   return withAudit(

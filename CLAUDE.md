@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Greenfield. The working tree currently contains only design documents — a prior Vite/React skeleton exists in the initial git commit but has been deleted (uncommitted). Re-scaffolding follows `TASKS.md §0`.
+Phase 0 (scaffold) and most of Phase 1 are built. The 14 modules under `modules/` (users, customers, leads, interactions, tasks, bookings, payments, quotations, documents, + dashboard/settings/reports/invoices stubs) are present with services, repositories, actions, schemas, and unit tests; Prisma schema + migrations and Better Auth are wired. `TASKS.md` is the live checklist — the still-open Phase 1 work is **Dashboard (1.10), Settings (1.11), Audit-log viewer (1.12), critical-path Playwright (1.13), production readiness (1.14)**, plus a few `[~]` decisions (email-invite onboarding, `ImportRun` history table, XLSX import). Note: every Phase 0 checkbox in `TASKS.md` still reads `[ ]` despite being done — those boxes are stale, not real work.
 
 ## Source of truth (read in this order)
 
@@ -21,14 +21,14 @@ Safar CRM — internal staff tool for a single Pakistani travel agency. Captures
 
 ## Non-negotiable rules
 
-- **Money is `bigint` paisa.** Never `number` / float. Use `src/lib/money/paisa.ts`. (See `ARCHITECTURE.md §2.2`.)
+- **Money is `bigint` paisa.** Never `number` / float. Use `lib/money/paisa.ts`. (See `ARCHITECTURE.md §2.2`.)
 - **Soft delete only** on Customers, Leads, Bookings (`deletedAt`). Reads filter `deletedAt IS NULL` at the repository layer; only an explicit `includeDeleted: true` flag bypasses it.
 - **Authorization inside services, not middleware.** Call `requirePermission(user, perm)` or `can(user, perm, resource)`. Middleware does session refresh only — never access control.
 - **Zod validates every server action input.**
 - **PII (`passportNo`, `passportExpiry`, `dob`, file keys)** never appears in logs, Sentry payloads, or `AuditLog.before/after`. Pino's redaction list and `redactPII()` enforce this. Passport masked to last-4 in audit JSON.
 - **AuditLog every mutation.** Wrap services with `withAudit(...)` inside the same transaction. AuditLog is append-only at the DB role level.
 - **Signed URLs are 5-min, route-mediated, never embedded in emails.** Emails link to gated download pages.
-- **Optimistic concurrency on lead stage transitions** via `updatedAt`.
+- **Optimistic concurrency** via an integer `version` column on Customer / Lead / Booking / Quotation; a stale `version` raises `ConflictError`. (Lead stage transitions are the canonical case.)
 - **Cron handlers are idempotent.** Reminder/expiry sweeps protect against Vercel Cron double-fire.
 - **Mobile-first.** Tables collapse to cards under 640px. Kanban is usable at 360px.
 - **Emails sent via transactional outbox** — never directly from a service body.
@@ -49,16 +49,23 @@ Modular monolith. **UI → Server Actions → Services → Repositories → Pris
 
 ## Folder structure (summary)
 
+There is **no `src/` directory** — everything lives at the repo root. The path alias `@/*` maps to `./*` (root), so imports read `@/modules/...`, `@/lib/...`, `@/components/...`.
+
 ```
-src/app/                Next.js routes only (thin)
-src/modules/<name>/     actions.ts, service.ts, repository.ts, schemas.ts, permissions.ts, ui/
-src/lib/                auth, db, audit, errors, logger, money, phone, storage, email, pdf, numbering, time, env
-src/ui/                 shared components + shadcn primitives
-prisma/                 schema, migrations, seed
-tests/                  unit, integration, e2e
+app/                    Next.js routes only (thin)
+  (app)/                authenticated app pages (dashboard, leads, customers, …)
+  api/                  route handlers: auth, cron, documents, healthz, quotations
+  login/  signup/       public auth pages
+modules/<name>/         <name>.actions.ts, <name>.service.ts, <name>.repository.ts,
+                        <name>.schemas.ts, <name>.types.ts  (files are name-prefixed)
+lib/                    auth, db.ts/db-direct.ts, audit, errors, logger, money, phone,
+                        storage, email, numbering, time, env, permissions, charts, hooks, cn.ts
+components/             shared UI: ui/ (shadcn primitives) + charts, common, forms, tables, layout, …
+prisma/                 schema.prisma, migrations, seed.ts
+tests/                  unit/ + integration/ (Vitest), e2e/ (Playwright), factories/, stubs/
 ```
 
-Full tree in `ARCHITECTURE.md §4`.
+Key deviations from `ARCHITECTURE.md §4`: modules contain **no `ui/` subfolder** (page/feature UI lives in `app/` + `components/`) and **no per-module `permissions.ts`** — the permission catalog and policy map are **centralized in `lib/permissions/`** (`permissions.ts`, `rbac.ts`, `helpers.ts`) and imported by services via `@/lib/permissions`.
 
 ## Roles (v1)
 
@@ -86,4 +93,26 @@ Do not start Phase 2 until Phase 1 is in daily use.
 
 ## Commands
 
-(To be filled in as scaffolding lands. Until `package.json` exists, there is no `pnpm dev` etc.)
+Package manager is **pnpm** (see `pnpm-workspace.yaml`). Node ≥ 20 (`.nvmrc`).
+
+| Task | Command |
+| --- | --- |
+| Dev server (Turbopack) | `pnpm dev` |
+| Production build | `pnpm build` |
+| Lint | `pnpm lint` |
+| Typecheck (no emit) | `pnpm typecheck` |
+| Format | `pnpm format` |
+| Unit/integration tests (watch) | `pnpm test` |
+| Single test run, no watch | `pnpm exec vitest run tests/unit/customers.service.test.ts` |
+| Filter by name | `pnpm exec vitest run -t "raises ConflictError"` |
+| E2E tests | `pnpm test:e2e` (single: `pnpm exec playwright test tests/e2e/auth.spec.ts`) |
+| Prisma migrate (dev) | `pnpm prisma:migrate` |
+| Prisma migrate (deploy) | `pnpm prisma:deploy` |
+| Prisma Studio | `pnpm prisma:studio` |
+| Seed (ADMIN from env) | `pnpm seed` |
+| Regenerate Better Auth tables | `pnpm auth:generate` |
+
+Testing notes:
+- Vitest runs `tests/unit/**` and `tests/integration/**` in the Node environment. Services import `server-only`, which throws outside an RSC bundle, so Vitest aliases it to a stub (`tests/stubs/server-only.ts`) — keep that alias when adding config.
+- Playwright owns `tests/e2e/**` (excluded from `tsconfig` and Vitest); run it with `pnpm test:e2e`, not `pnpm test`.
+- `prisma generate` runs automatically on `postinstall`.

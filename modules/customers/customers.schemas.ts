@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** Hard cap on rows per import (ARCHITECTURE.md §2.12 / TASKS.md §1.3). */
+export const MAX_IMPORT_ROWS = 50_000;
+
 // ─── Shared field validators ───────────────────────────────────────────────
 
 const nameSchema = z

@@ -192,10 +192,19 @@ export async function deleteFile(key: string): Promise<void> {
  * Mint a 5-minute presigned PUT URL constrained to the declared content type.
  * The browser uploads directly to R2 with this URL — bytes never transit our
  * server. Size is enforced post-upload via headObject().
+ *
+ * When `checksumSha256Base64` is supplied the URL is signed with the
+ * `x-amz-checksum-sha256` header, so R2 REJECTS the PUT unless the uploaded
+ * bytes hash to exactly that value (integrity verified at write time — see
+ * TASKS.md §1.9). The caller must send that header on the PUT.
+ *
+ * NB: browser PUTs require the R2 bucket CORS policy to allow the
+ * `x-amz-checksum-sha256` request header (see modules/documents/README.md).
  */
 export async function createSignedUploadUrl(params: {
   key: string;
   contentType: string;
+  checksumSha256Base64?: string;
 }): Promise<string> {
   const { client, bucket } = getClient();
   try {
@@ -205,6 +214,9 @@ export async function createSignedUploadUrl(params: {
         Bucket: bucket,
         Key: params.key,
         ContentType: params.contentType,
+        ...(params.checksumSha256Base64
+          ? { ChecksumSHA256: params.checksumSha256Base64 }
+          : {}),
       }),
       { expiresIn: SIGNED_URL_TTL_SECONDS },
     );

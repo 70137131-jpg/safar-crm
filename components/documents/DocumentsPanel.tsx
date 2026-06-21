@@ -159,6 +159,7 @@ export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, ca
           fileName: file.name,
           contentType: file.type,
           sizeBytes: file.size,
+          checksumSha256: checksum,
           type: docType,
         });
         if (!ticketRes.ok) {

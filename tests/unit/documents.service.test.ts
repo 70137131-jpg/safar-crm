@@ -82,6 +82,7 @@ const validUpload = {
   fileName: "passport.pdf",
   contentType: "application/pdf",
   sizeBytes: 1000,
+  checksumSha256: "a".repeat(64),
   type: "PASSPORT" as const,
   customerId: "cust-1",
 };
@@ -128,6 +129,15 @@ describe("createUploadTicket", () => {
     expect(ticket.uploadUrl).toBe("https://r2.example/put");
     expect(ticket.fileKey.startsWith("documents/cust-1/")).toBe(true);
     expect(r2Mocks.createSignedUploadUrl).toHaveBeenCalled();
+  });
+
+  it("signs the PUT with the base64 SHA-256 and returns the checksum header so R2 verifies on write", async () => {
+    const expectedB64 = Buffer.from(validUpload.checksumSha256, "hex").toString("base64");
+    const ticket = await service.createUploadTicket(adminUser, validUpload);
+    expect(r2Mocks.createSignedUploadUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ checksumSha256Base64: expectedB64 }),
+    );
+    expect(ticket.requiredHeaders["x-amz-checksum-sha256"]).toBe(expectedB64);
   });
 
   it("rejects an unsupported mime type", async () => {

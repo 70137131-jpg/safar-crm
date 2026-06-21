@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { UserContext } from "@/lib/permissions/types";
 import { requirePermission } from "@/lib/permissions";
 import { ValidationError, NotFoundError, ConflictError } from "@/lib/errors";
@@ -359,6 +360,19 @@ export async function searchCustomers(
   };
 }
 
+/**
+ * Maps a row-insert failure to a human message. Recognises the partial
+ * unique-index violation (P2002) raised by a within-file duplicate, which the
+ * pre-checks — reading already-committed rows only — can't see.
+ */
+function importErrorMessage(err: unknown): string {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    return "Duplicate email or phone number (already present in this file or the database)";
+  }
+  if (err instanceof Error) return err.message;
+  return "Unknown error";
+}
+
 export async function importCustomers(
   user: UserContext,
   rows: ImportCustomerRow[],
@@ -369,7 +383,10 @@ export async function importCustomers(
   let successCount = 0;
   let errorCount = 0;
 
-  // Process in chunks of 200 per ARCHITECTURE.md §2.12
+  // Insert in chunks of 200 (ARCHITECTURE.md §2.12). Each row runs inside a
+  // SAVEPOINT so a single bad row (e.g. a within-file duplicate that trips the
+  // partial unique index) rolls back on its own and the chunk transaction stays
+  // usable — otherwise the first failed INSERT would abort every later row.
   const CHUNK_SIZE = 200;
 
   for (let chunkStart = 0; chunkStart < rows.length; chunkStart += CHUNK_SIZE) {
@@ -379,26 +396,16 @@ export async function importCustomers(
       for (let i = 0; i < chunk.length; i++) {
         const row = chunk[i]!;
         const rowNum = chunkStart + i + 1;
-        try {
-          // Normalize phone
-          const phone = row.phone
-            ? normalizePakistaniPhone(row.phone)
-            : null;
+        const phone = row.phone ? normalizePakistaniPhone(row.phone) : null;
 
-          // Check duplicates
-          if (row.email) {
-            const emailExists = await repo.existsByEmail(row.email);
-            if (emailExists) {
-              throw new ConflictError(
-                `Duplicate email: ${row.email}`,
-              );
-            }
+        await tx.$executeRawUnsafe("SAVEPOINT import_row");
+        try {
+          // Friendly pre-checks against already-committed rows.
+          if (row.email && (await repo.existsByEmail(row.email))) {
+            throw new ConflictError(`Duplicate email: ${row.email}`);
           }
-          if (phone) {
-            const phoneExists = await repo.existsByPhone(phone);
-            if (phoneExists) {
-              throw new ConflictError(`Duplicate phone: ${phone}`);
-            }
+          if (phone && (await repo.existsByPhone(phone))) {
+            throw new ConflictError(`Duplicate phone: ${phone}`);
           }
 
           const record = await repo.create(
@@ -431,18 +438,19 @@ export async function importCustomers(
             tx,
           );
 
+          await tx.$executeRawUnsafe("RELEASE SAVEPOINT import_row");
           successCount++;
           results.push({ row: rowNum, success: true, name: row.name });
         } catch (err) {
+          // Undo just this row; the rest of the chunk continues.
+          await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT import_row");
+          await tx.$executeRawUnsafe("RELEASE SAVEPOINT import_row");
           errorCount++;
           results.push({
             row: rowNum,
             success: false,
             name: row.name,
-            error:
-              err instanceof Error
-                ? err.message
-                : "Unknown error",
+            error: importErrorMessage(err),
           });
         }
       }

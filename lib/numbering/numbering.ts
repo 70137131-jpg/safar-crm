@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
+import type { db } from "@/lib/db";
 
 /**
  * Human-readable document numbers, minted from Postgres sequences.

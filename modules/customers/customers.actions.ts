@@ -1,13 +1,14 @@
 "use server";
 
 import { requireUser } from "@/lib/auth/session";
-import { serverAction } from "@/lib/errors";
+import { serverAction, ValidationError } from "@/lib/errors";
 import {
   createCustomerSchema,
   updateCustomerSchema,
   listCustomersSchema,
   searchCustomersSchema,
   importCustomerRowSchema,
+  MAX_IMPORT_ROWS,
 } from "./customers.schemas";
 import type {
   CustomerDTO,
@@ -109,6 +110,11 @@ export const importCustomersAction = serverAction(
   "customers.import",
   async (rawRows: Record<string, unknown>[]): Promise<ImportResult> => {
     const user = await requireUser();
+    if (rawRows.length > MAX_IMPORT_ROWS) {
+      throw new ValidationError(
+        `Import exceeds the ${MAX_IMPORT_ROWS.toLocaleString()}-row limit. Split the file and try again.`,
+      );
+    }
     // Validate each row individually — collect valid ones
     const validRows = [];
     const errors: ImportResult["errors"] = [];

@@ -9,7 +9,9 @@ import {
   XCircle,
   AlertCircle,
   ArrowLeft,
+  Download,
 } from "lucide-react";
+import Papa from "papaparse";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { importCustomersAction } from "@/modules/customers/customers.actions";
@@ -24,37 +26,34 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// ─── CSV parser ─────────────────────────────────────────────────────────────
+// ─── Limits (mirror the server cap in customers.actions.ts) ──────────────────
+
+const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_ROWS = 50_000;
+
+// ─── CSV parser (papaparse — handles quotes, embedded newlines, CRLF) ────────
 
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return [];
-
-  const headerLine = lines[0]!;
-  const headers = headerLine.split(",").map((h) => h.trim().replace(/^"(.*)"$/, "$1"));
-
-  return lines.slice(1).map((line) => {
-    const values: string[] = [];
-    let current = "";
-    let inQuotes = false;
-    for (const ch of line) {
-      if (ch === '"') {
-        inQuotes = !inQuotes;
-      } else if (ch === "," && !inQuotes) {
-        values.push(current.trim());
-        current = "";
-      } else {
-        current += ch;
-      }
-    }
-    values.push(current.trim());
-
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      row[h] = values[i] ?? "";
-    });
-    return row;
+  const { data } = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: "greedy",
+    transformHeader: (h) => h.trim(),
   });
+  return data;
+}
+
+/** Build a CSV error report and trigger a browser download. */
+function downloadErrorReport(errors: ImportResult["errors"], sourceName: string) {
+  const csv = Papa.unparse(
+    errors.map((e) => ({ row: e.row, name: e.name ?? "", error: e.error ?? "" })),
+  );
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${sourceName.replace(/\.[^.]+$/, "") || "import"}-errors.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── Steps ──────────────────────────────────────────────────────────────────
@@ -87,13 +86,12 @@ export function ImportClient() {
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
 
-    if (
-      file.name.endsWith(".xlsx") ||
-      file.name.endsWith(".xls")
-    ) {
-      toast.error(
-        "XLSX support requires the exceljs library. Please export to CSV for now.",
-      );
+    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      toast.error("XLSX import isn't available yet — please export to CSV for now.");
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      toast.error("File is larger than 25 MB. Split it into smaller files.");
       return;
     }
 
@@ -101,6 +99,12 @@ export function ImportClient() {
     const parsed = parseCSV(text);
     if (parsed.length === 0) {
       toast.error("No valid rows found in the file.");
+      return;
+    }
+    if (parsed.length > MAX_ROWS) {
+      toast.error(
+        `File has ${parsed.length.toLocaleString()} rows — the limit is ${MAX_ROWS.toLocaleString()}. Split it and try again.`,
+      );
       return;
     }
     setRows(parsed);
@@ -307,10 +311,20 @@ export function ImportClient() {
         {/* Error details */}
         {result.errors.length > 0 && (
           <div className="space-y-2">
-            <h3 className="flex items-center gap-2 text-sm font-medium">
-              <AlertCircle className="h-4 w-4 text-destructive" />
-              Errors ({result.errors.length})
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-medium">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                Errors ({result.errors.length})
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => downloadErrorReport(result.errors, fileName)}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download error report
+              </Button>
+            </div>
             <div className="max-h-64 overflow-auto rounded-lg border">
               <Table>
                 <TableHeader>

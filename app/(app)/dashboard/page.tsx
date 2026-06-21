@@ -3,7 +3,10 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStats } from "./DashboardStats";
+import { MonthlyTrends } from "./MonthlyTrends";
+import { TopDestinations } from "./TopDestinations";
 import { BookingStats } from "./BookingStats";
 import { QuotationStats } from "./QuotationStats";
 import { TasksWidget } from "./TasksWidget";
@@ -14,8 +17,6 @@ import { RecentPayments } from "./RecentPayments";
 export const metadata: Metadata = {
   title: "Dashboard",
 };
-
-import { Card, CardContent } from "@/components/ui/card";
 
 function WidgetSkeleton() {
   return (
@@ -32,10 +33,21 @@ function WidgetSkeleton() {
   );
 }
 
+function ChartSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <LoadingSkeleton className="mb-4 h-4 w-40" />
+        <LoadingSkeleton className="h-[280px] w-full" />
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, i) => (
         <Card key={i}>
           <CardContent className="p-6">
             <LoadingSkeleton className="mb-2 h-4 w-24" />
@@ -59,6 +71,15 @@ export default function DashboardPage() {
         <Suspense fallback={<StatsSkeleton />}>
           <DashboardStats />
         </Suspense>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Suspense fallback={<ChartSkeleton />}>
+            <MonthlyTrends />
+          </Suspense>
+          <Suspense fallback={<ChartSkeleton />}>
+            <TopDestinations />
+          </Suspense>
+        </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<WidgetSkeleton />}>

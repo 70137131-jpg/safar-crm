@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { login, logout, ADMIN_EMAIL, ADMIN_PASSWORD } from "./helpers";
+import { login, logout, ADMIN_EMAIL } from "./helpers";
 
 /**
  * Authentication & session E2E.

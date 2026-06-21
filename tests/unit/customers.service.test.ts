@@ -10,10 +10,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Mock setup ──────────────────────────────────────────────────────────────
 
+// Spy on the per-row SAVEPOINT/ROLLBACK raw calls. Hoisted so the vi.mock
+// factory (which is itself hoisted) can reference it.
+const { txExec } = vi.hoisted(() => ({ txExec: vi.fn() }));
+
 vi.mock("@/lib/db", () => ({
   db: {
     $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) =>
-      fn({ customer: {}, auditLog: {} }),
+      fn({ customer: {}, auditLog: {}, $executeRawUnsafe: txExec }),
     ),
   },
 }));
@@ -288,6 +292,30 @@ describe("importCustomers", () => {
     ]);
     expect(result.errorCount).toBe(1);
     expect(result.errors[0]?.error).toContain("Duplicate email");
+  });
+
+  it("rolls back a single failed row to its savepoint and continues the chunk", async () => {
+    // Row 2 fails at insert; rows 1 and 3 still succeed.
+    mockRepo.create
+      .mockResolvedValueOnce(mockCustomer)
+      .mockRejectedValueOnce(new Error("insert boom"))
+      .mockResolvedValueOnce(mockCustomer);
+
+    const result = await service.importCustomers(adminUser, [
+      { name: "Row 1" },
+      { name: "Row 2" },
+      { name: "Row 3" },
+    ]);
+
+    expect(result.successCount).toBe(2);
+    expect(result.errorCount).toBe(1);
+    expect(result.errors[0]?.row).toBe(2);
+    // The failed row opened a savepoint and was rolled back to it, leaving the
+    // chunk transaction alive for row 3.
+    expect(txExec).toHaveBeenCalledWith(expect.stringContaining("SAVEPOINT import_row"));
+    expect(txExec).toHaveBeenCalledWith(
+      expect.stringContaining("ROLLBACK TO SAVEPOINT import_row"),
+    );
   });
 
   it("rejects AGENT (no customers:import)", async () => {

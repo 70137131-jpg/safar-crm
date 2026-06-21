@@ -74,6 +74,8 @@ export const createUploadUrlSchema = z
     fileName: fileNameSchema,
     contentType: contentTypeSchema,
     sizeBytes: sizeBytesSchema,
+    // Declared up front so the presigned PUT can require R2 to verify it on write.
+    checksumSha256: checksumSchema,
     type: documentTypeSchema,
     customerId: customerIdSchema.optional(),
     bookingId: bookingIdSchema.optional(),

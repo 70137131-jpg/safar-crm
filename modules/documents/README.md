@@ -9,12 +9,21 @@ and audited.
 
 ## Upload flow (presigned PUT — ARCHITECTURE.md §8)
 
-1. `createUploadUrlAction` → service validates type/size/ownership, returns a
-   5-min presigned PUT URL + a content-addressed key `documents/{customerId}/{uuid}/{file}`.
-2. Browser computes a SHA-256 and PUTs the bytes **directly to R2** (never through
-   our server).
+1. Browser computes the file's SHA-256, then `createUploadUrlAction` → service
+   validates type/size/ownership and returns a 5-min presigned PUT URL (signed
+   with `x-amz-checksum-sha256`) + a content-addressed key
+   `documents/{customerId}/{uuid}/{file}`.
+2. Browser PUTs the bytes **directly to R2** (never through our server) sending
+   the `x-amz-checksum-sha256` header. **R2 rejects the PUT unless the bytes hash
+   to the declared value** — integrity is verified at write time (TASKS.md §1.9).
 3. `confirmUploadAction` → service `HEAD`s the object to confirm it landed and
-   matches the declared size, then records the `Document` row.
+   matches the declared size, then records the `Document` row (the checksum is
+   already trustworthy because the object could not have landed otherwise).
+
+> **Deploy requirement:** browser PUTs only succeed if the R2 bucket CORS policy
+> allows the `x-amz-checksum-sha256` request header (in addition to
+> `Content-Type`). Update the bucket CORS `AllowedHeaders` before relying on
+> checksum-verified uploads in any environment.
 
 ## Download flow
 

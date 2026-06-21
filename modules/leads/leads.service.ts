@@ -152,6 +152,16 @@ export async function getKanban(
   return columns;
 }
 
+/**
+ * Cross-module invariant query: how many open (non-terminal) leads are assigned
+ * to `agentId`. Consumed by the users service to block deactivation until a
+ * user's pipeline is reassigned (TASKS.md §1.1). Not a UI-facing read — it
+ * returns only a count, never lead data, so it takes no permission check.
+ */
+export async function countOpenLeadsForAgent(agentId: string): Promise<number> {
+  return repo.countOpenByAgent(agentId);
+}
+
 export async function getLeadHistory(
   user: UserContext,
   id: string,

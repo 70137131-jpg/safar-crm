@@ -75,7 +75,7 @@ export async function findMany(filters: FindManyFilters) {
     ...(filters.includeDeleted ? {} : { deletedAt: null }),
     ...(filters.assignedAgentId ? { assignedAgentId: filters.assignedAgentId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.source ? { source: filters.source } : {}),
+    ...(filters.source ? { source: { contains: filters.source, mode: "insensitive" } } : {}),
     ...(filters.search ? { OR: searchWhere(filters.search) } : {}),
   };
 
@@ -121,6 +121,21 @@ export async function findHistory(leadId: string) {
     where: { leadId },
     include: { byUser: { select: { id: true, name: true } } },
     orderBy: { occurredAt: "desc" },
+  });
+}
+
+/**
+ * Count open (non-terminal) leads currently assigned to an agent. LOST and
+ * TRAVELLED are terminal; everything else is still in flight. Used by the users
+ * module to block deactivating a user before their pipeline is reassigned.
+ */
+export async function countOpenByAgent(agentId: string): Promise<number> {
+  return db.lead.count({
+    where: {
+      assignedAgentId: agentId,
+      deletedAt: null,
+      status: { notIn: ["LOST", "TRAVELLED"] },
+    },
   });
 }
 

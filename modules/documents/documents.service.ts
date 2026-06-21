@@ -137,15 +137,25 @@ export async function createUploadTicket(
   const parent = await resolveParentAndAuthorize(user, input, "documents:upload");
 
   const fileKey = buildDocumentKey(parent.customerId, input.fileName);
+
+  // The DB stores the SHA-256 as hex; R2 (S3) wants it base64 on the PUT. Signing
+  // with it makes R2 reject the upload unless the bytes hash to this value, so a
+  // Document row can only ever be confirmed for an object whose integrity already
+  // matched at write time (TASKS.md §1.9 — "checksum verified before recording").
+  const checksumBase64 = Buffer.from(input.checksumSha256, "hex").toString("base64");
   const uploadUrl = await createSignedUploadUrl({
     key: fileKey,
     contentType: input.contentType,
+    checksumSha256Base64: checksumBase64,
   });
 
   return {
     uploadUrl,
     fileKey,
-    requiredHeaders: { "Content-Type": input.contentType },
+    requiredHeaders: {
+      "Content-Type": input.contentType,
+      "x-amz-checksum-sha256": checksumBase64,
+    },
     expiresInSeconds: 300,
   };
 }
@@ -163,7 +173,9 @@ export async function confirmUpload(
     throw new ValidationError("File key does not match the target customer", "fileKey");
   }
 
-  // Confirm the object actually landed and matches the declared size.
+  // Confirm the object actually landed and matches the declared size. Its
+  // SHA-256 was already verified by R2 at write time (the presigned PUT was
+  // signed with x-amz-checksum-sha256), so the recorded checksum is trustworthy.
   const head = await headObject(input.fileKey);
   if (!head) {
     throw new IntegrationError("Upload was not found in storage — please retry.");

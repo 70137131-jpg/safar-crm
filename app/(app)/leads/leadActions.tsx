@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { LeadStatus } from "@prisma/client";
+import { ERROR_CODES } from "@/lib/errors/codes";
 import {
   changeLeadStatusAction,
   convertLeadAction,
@@ -35,13 +36,20 @@ export function useLeadMutations(onChanged: () => void) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  /** A stale-version (OCC) failure means the board is out of date — refetch so
+   *  the user sees the current state and a fresh version token. */
+  const onFailure = (r: { code: string; message: string }) => {
+    toast.error(r.message);
+    if (r.code === ERROR_CODES.CONFLICT) onChanged();
+  };
+
   const changeStatus = (lead: LeadRef, status: LeadStatus) =>
     startTransition(async () => {
       const r = await changeLeadStatusAction(lead.id, { status, version: lead.version });
       if (r.ok) {
         toast.success("Lead updated");
         onChanged();
-      } else toast.error(r.message);
+      } else onFailure(r);
     });
 
   const markLost = (lead: LeadRef, lostReason: string, lostNotes: string) =>
@@ -55,7 +63,7 @@ export function useLeadMutations(onChanged: () => void) {
       if (r.ok) {
         toast.success("Lead marked as lost");
         onChanged();
-      } else toast.error(r.message);
+      } else onFailure(r);
     });
 
   const convert = (lead: LeadRef, totalPrice: string) =>
@@ -65,7 +73,7 @@ export function useLeadMutations(onChanged: () => void) {
         toast.success(`Converted — booking ${r.data.bookingNumber}`);
         onChanged();
         router.refresh();
-      } else toast.error(r.message);
+      } else onFailure(r);
     });
 
   const remove = (lead: LeadRef) =>
@@ -74,7 +82,7 @@ export function useLeadMutations(onChanged: () => void) {
       if (r.ok) {
         toast.success("Lead deleted");
         onChanged();
-      } else toast.error(r.message);
+      } else onFailure(r);
     });
 
   return { changeStatus, markLost, convert, remove, pending };

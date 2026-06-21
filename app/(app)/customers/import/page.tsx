@@ -21,8 +21,9 @@ export default function ImportCustomersPage() {
           Import Customers
         </h1>
         <p className="mb-6 text-sm text-muted-foreground">
-          Upload a CSV or XLSX file with customer data. Preview rows before
-          importing.
+          Upload a CSV file with customer data (up to 25 MB / 50,000 rows).
+          Preview rows before importing; any rejected rows can be downloaded as
+          an error report.
         </p>
         <ImportClient />
       </div>
