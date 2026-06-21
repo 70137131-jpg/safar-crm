@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, Users, Building2, Mail, Bell, ShieldCheck } from "lucide-react";
+import { User, Users, Building2, Tag, Mail, Bell, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -15,6 +15,7 @@ const ALL_ITEMS = [
   { href: "/settings/profile", label: "Profile", icon: User },
   { href: "/settings/users", label: "Users", icon: Users },
   { href: "/settings/agency", label: "Agency", icon: Building2 },
+  { href: "/settings/lead-sources", label: "Lead sources", icon: Tag },
   { href: "/settings/email", label: "Email", icon: Mail },
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/roles", label: "Roles", icon: ShieldCheck },

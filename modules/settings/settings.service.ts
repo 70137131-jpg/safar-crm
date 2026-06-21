@@ -10,6 +10,7 @@ import type {
   TestEmailInput,
   UpdateAgencyInput,
   UpdateEmailInput,
+  UpdateLeadSourcesInput,
   UpdateNotificationsInput,
 } from "./settings.schemas";
 
@@ -207,6 +208,17 @@ export async function updateNotifications(
     paymentDueWarnDays: input.paymentDueWarnDays,
     quotationExpiryWarnDays: input.quotationExpiryWarnDays,
     overdueTaskWarnDays: input.overdueTaskWarnDays,
+  });
+}
+
+export async function updateLeadSources(
+  user: UserContext,
+  input: UpdateLeadSourcesInput,
+): Promise<SettingsDTO> {
+  requirePermission(user, "settings:update");
+  const before = await getSettings(user);
+  return auditedUpdate(user, "settings.lead_sources_update", before, {
+    leadSources: input.leadSources,
   });
 }
 

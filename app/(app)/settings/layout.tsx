@@ -16,7 +16,12 @@ export default async function SettingsLayout({ children }: { children: ReactNode
   const allowed: string[] = ["/settings/profile"];
   if (user && can(user, "users:view")) allowed.push("/settings/users");
   if (user && can(user, "settings:update")) {
-    allowed.push("/settings/agency", "/settings/email", "/settings/notifications");
+    allowed.push(
+      "/settings/agency",
+      "/settings/lead-sources",
+      "/settings/email",
+      "/settings/notifications",
+    );
   }
   if (user && can(user, "settings:view")) allowed.push("/settings/roles");
 

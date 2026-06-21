@@ -8,6 +8,8 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 
 ## Phase 0 — Scaffolding & foundations
 
+> **Status: ✅ complete and in production.** Every box below is built (Next.js 16 + Tailwind + shadcn, Prisma/Neon, Better Auth, permissions, audit, logger, money, env, seed, Vercel deploy). The `[ ]` marks were never flipped — treat this section as done; remaining operational verifications (Sentry prod event, external healthcheck, backup drill) are tracked under §1.14.
+
 ### 0.1 Repo hygiene
 - [ ] Confirm working-tree deletions of the prior Vite skeleton; commit a clean slate.
 - [ ] Add `.editorconfig`, `.nvmrc` (Node LTS pinned).
@@ -114,7 +116,7 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] Interaction module: log call/whatsapp/email/meeting/note; polymorphic FK constraint (DB check).
 - [x] `wa.me` button creates an Interaction and opens the link (`LeadCard`).
 - [x] **Acceptance:** Two concurrent stage transitions: one succeeds, one returns a conflict and refetches — service raises `ConflictError` on a stale `version` (`tests/unit/leads.service.test.ts` "raises ConflictError on a stale version (OCC)"); the UI refetches on `CONFLICT` (kanban rolls back the optimistic move, list/kanban refetch).
-- [~] _Not built:_ lead-source list comes from free text (the Settings → lead-source editor is §1.11); bulk selection is desktop-only; interaction timeline is not yet paginated.
+- [~] _Partially built:_ the Settings → lead-source editor now exists (§1.11), but the lead create/edit form does **not** yet consume it — lead source is still free text. Wiring the form to a dropdown sourced from `settings.leadSources` is the remaining step. Also: bulk selection is desktop-only; interaction timeline is not yet paginated.
 
 ### 1.5 Tasks + cron sweeps
 - [x] Task schema + service + UI (my open tasks, sorted by dueDate).
@@ -156,18 +158,20 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] Role-aware data scoping (AGENT sees own) — every widget query applies `dashboardScope(user)` (`app/(app)/dashboard/scope.ts`); covered by `tests/unit/dashboard-scope.test.ts`. Dashboard module services remain intentional stubs (read-only, queries `db` directly per `ARCHITECTURE.md §5.12`).
 
 ### 1.11 Settings
-- [ ] Agency profile (name, address, logo, tax id) editor (ADMIN).
-- [ ] Lead-source list editor.
+- [~] Agency profile editor (ADMIN) — `app/(app)/settings/agency/`. Built: name, address, phone, email, website, tax %, timezone (audited via `settings.agency_update`). _Still missing from the spec line: **logo upload** (`agencyLogoKey` column exists, unused in the editor) and a **tax ID / NTN** field (`taxRegistrationNo` column exists, unused; the editor only has tax %)._
+- [x] Lead-source list editor (ADMIN) — `app/(app)/settings/lead-sources/` chip editor → `updateLeadSourcesAction` → `service.updateLeadSources` (audited `settings.lead_sources_update`). Server normalises (trim, case-insensitive dedupe, ≤60 chars each, ≤50 total); covered by `tests/unit/settings.schemas.test.ts`. Wired into the settings nav + permission gate (`settings:update`).
+- [x] _Beyond the original spec, also built:_ email-sender config, notification toggles + warn-day windows, self-profile, roles (matrix view), users admin — all under `app/(app)/settings/`.
 
 ### 1.12 Audit log viewer
 - [ ] List view filtered by entity / actor / date with diff display.
 
 ### 1.13 Critical-path tests (Playwright)
-- [ ] Login (success, lockout).
+> Existing specs: `tests/e2e/auth.spec.ts`, `customers.spec.ts`, `documents.spec.ts` (+ `helpers.ts`). The boxes below reflect what still needs writing/confirming.
+- [~] Login (success, lockout) — `auth.spec.ts` exists; confirm it asserts the 5-attempt lockout.
 - [ ] Create lead → convert → booking → payment.
-- [ ] AGENT cannot view another agent's customer (URL probing test).
+- [~] AGENT cannot view another agent's customer (URL probing test) — confirm coverage in `customers.spec.ts`.
 - [ ] Quote SEND under concurrency.
-- [ ] Document download permission + audit assertion.
+- [x] Document download permission + audit assertion — `documents.spec.ts` (also referenced in §1.9).
 
 ### 1.14 Production readiness
 - [ ] Sentry verified in prod (test event).

@@ -21,6 +21,7 @@ export interface SettingsWriteData {
   defaultTaxBps?: number;
   defaultCurrency?: string;
   defaultTimezone?: string;
+  leadSources?: string[];
   senderName?: string | null;
   senderEmail?: string | null;
   replyToEmail?: string | null;

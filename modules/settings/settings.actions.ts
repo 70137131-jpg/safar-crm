@@ -6,6 +6,7 @@ import {
   testEmailSchema,
   updateAgencySchema,
   updateEmailSchema,
+  updateLeadSourcesSchema,
   updateNotificationsSchema,
 } from "./settings.schemas";
 import type { SettingsDTO } from "./settings.types";
@@ -43,6 +44,15 @@ export const updateNotificationsAction = serverAction(
     const user = await requireUser();
     const parsed = updateNotificationsSchema.parse(input);
     return service.updateNotifications(user, parsed);
+  },
+);
+
+export const updateLeadSourcesAction = serverAction(
+  "settings.updateLeadSources",
+  async (input: Record<string, unknown>): Promise<SettingsDTO> => {
+    const user = await requireUser();
+    const parsed = updateLeadSourcesSchema.parse(input);
+    return service.updateLeadSources(user, parsed);
   },
 );
 

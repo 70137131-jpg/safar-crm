@@ -67,6 +67,32 @@ export const updateNotificationsSchema = z.object({
 });
 export type UpdateNotificationsInput = z.infer<typeof updateNotificationsSchema>;
 
+/** Caps for the lead-source list editor. */
+export const MAX_LEAD_SOURCES = 50;
+export const MAX_LEAD_SOURCE_LENGTH = 60;
+
+export const updateLeadSourcesSchema = z.object({
+  // Accept the raw list, then normalise server-side: trim, drop blanks,
+  // dedupe case-insensitively (keeping the first spelling), cap the count.
+  leadSources: z
+    .array(z.string().trim().max(MAX_LEAD_SOURCE_LENGTH, `Each source must be ${MAX_LEAD_SOURCE_LENGTH} characters or fewer`))
+    .max(200, "Too many lead sources")
+    .transform((arr) => {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const raw of arr) {
+        const value = raw.trim();
+        if (!value) continue;
+        const key = value.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(value);
+      }
+      return out.slice(0, MAX_LEAD_SOURCES);
+    }),
+});
+export type UpdateLeadSourcesInput = z.infer<typeof updateLeadSourcesSchema>;
+
 export const testEmailSchema = z.object({
   to: optionalEmail,
 });
