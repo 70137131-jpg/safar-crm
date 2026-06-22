@@ -650,9 +650,13 @@ model AuditLog {
   @@index([actorId])
   @@index([entity, entityId, createdAt(sort: Desc)])
   @@index([actorId, createdAt(sort: Desc)])
+  // BRIN index for time-range scans over the append-only log. Declared here (not
+  // only as raw SQL) so `prisma migrate diff` sees no drift; the init migration
+  // already creates it under this exact name.
+  @@index([createdAt], type: Brin, map: "audit_log_created_brin")
 
-  // RAW MIGRATIONS (run as the migration role, NOT crm_app):
-  //   CREATE INDEX audit_log_created_brin ON "AuditLog" USING BRIN ("createdAt");
+  // RAW MIGRATIONS (run as the migration role, NOT crm_app) — not expressible in
+  // the Prisma schema, so they remain raw SQL in the init migration:
   //   REVOKE UPDATE, DELETE ON "AuditLog" FROM crm_app;
   //   GRANT INSERT, SELECT ON "AuditLog" TO crm_app;
   //   -- Plan: partition by createdAt monthly once row count > 5M (see runbook).
