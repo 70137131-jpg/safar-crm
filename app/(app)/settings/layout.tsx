@@ -24,6 +24,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
     );
   }
   if (user && can(user, "settings:view")) allowed.push("/settings/roles");
+  if (user && can(user, "audit:view")) allowed.push("/settings/audit");
 
   return (
     <PageWrapper>

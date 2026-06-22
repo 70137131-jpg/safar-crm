@@ -64,6 +64,9 @@ jobs:
       - name: Seed (admin + demo roles + demo data)
         run: pnpm seed
 
+      - name: Concurrency proof (quote numbering, real DB)
+        run: RUN_DB_TESTS=1 pnpm exec vitest run tests/integration/quote-numbering.concurrency.test.ts
+
       - name: Install Playwright (chromium)
         run: pnpm exec playwright install --with-deps chromium
 

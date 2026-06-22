@@ -18,6 +18,7 @@
     "auth:generate": "npx @better-auth/cli generate --output prisma/schema.prisma",
     "seed": "tsx prisma/seed.ts",
     "test": "vitest",
+    "test:db": "RUN_DB_TESTS=1 vitest run tests/integration",
     "test:e2e": "playwright test"
   },
   "prisma": {

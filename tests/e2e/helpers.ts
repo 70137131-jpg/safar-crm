@@ -11,6 +11,11 @@ import { type Page, expect } from "@playwright/test";
 export const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@safarcrm.local";
 export const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe-Local-12345";
 
+// Demo AGENT seeded by prisma/seed.ts — used for ownership/authorization specs.
+// Defaults mirror the seed constants; override via env if the seed changes.
+export const AGENT_EMAIL = process.env.SEED_AGENT_EMAIL ?? "agent@safarcrm.local";
+export const AGENT_PASSWORD = process.env.SEED_AGENT_PASSWORD ?? "DemoAgent!2026";
+
 export async function login(
   page: Page,
   email: string = ADMIN_EMAIL,

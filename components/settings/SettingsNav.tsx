@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, Users, Building2, Tag, Mail, Bell, ShieldCheck } from "lucide-react";
+import { User, Users, Building2, Tag, Mail, Bell, ShieldCheck, ScrollText } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -19,6 +19,7 @@ const ALL_ITEMS = [
   { href: "/settings/email", label: "Email", icon: Mail },
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/roles", label: "Roles", icon: ShieldCheck },
+  { href: "/settings/audit", label: "Audit log", icon: ScrollText },
 ] as const;
 
 export function SettingsNav({ allowed }: { allowed: string[] }) {
