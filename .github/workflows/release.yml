@@ -83,7 +83,16 @@ jobs:
           echo "Validation passed. Production deploy is handled by Vercel's Git"
           echo "integration on the default branch, OR trigger a deploy hook below."
       - name: Trigger Vercel deploy hook (if configured)
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+        # The `secrets` context is NOT allowed in `if:` — referencing it there is a
+        # workflow compile error (Unrecognized named-value: 'secrets'), which fails
+        # the run at startup before any job runs. Pass it via env and branch in-script.
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
+          else
+            echo "No VERCEL_DEPLOY_HOOK_URL configured — Vercel's Git integration handles the prod deploy."
+          fi
       # NOTE: prod `prisma migrate deploy` runs as a Vercel build/deploy step
       # against DIRECT_DATABASE_URL (the owner role) — see DEPLOYMENT.md §5.3.
