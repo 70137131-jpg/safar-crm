@@ -79,6 +79,10 @@ Strictly per `TASKS.md`:
 
 Do not start Phase 2 until Phase 1 is in daily use.
 
+## Branching & deploy gate
+
+`master` is **protected** and auto-deploys to production on every update, so it must stay green. Do **not** push to `master` directly — it is rejected. Flow: branch → push → open a PR → CI (`Lint · Typecheck · Test · Build`) + a Vercel preview run → **merge once green**. The merge to `master` is what ships to prod. (Emergency bypass: an admin can temporarily lift protection in repo settings.)
+
 ## Common pitfalls to avoid
 
 - Don't store money in `number`. Don't `JSON.stringify` an entity before redaction.
