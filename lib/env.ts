@@ -11,11 +11,21 @@ const envSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
-  DIRECT_DATABASE_URL: z.string().url(),
+  // Direct (non-pooled) URL — migrations + admin scripts only (lib/db-direct.ts,
+  // never imported at app runtime). Optional so Vercel Preview works: Neon's
+  // branch-per-preview injects only DATABASE_URL, and a preview branch is already
+  // migrated, so we fall back to DATABASE_URL below. Prod + CI set this explicitly.
+  DIRECT_DATABASE_URL: z.string().url().optional(),
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be ≥ 32 chars"),
-  BETTER_AUTH_URL: z.string().url(),
+  // Optional so Vercel Preview works: preview URLs are per-deployment, so we fall
+  // back to the deployment's own origin (VERCEL_URL) below. Prod + CI set the
+  // canonical URL explicitly.
+  BETTER_AUTH_URL: z.string().url().optional(),
+
+  // Set by Vercel on every deployment (the deployment's own host, no protocol).
+  VERCEL_URL: z.string().optional(),
 
   // Sentry (optional in dev)
   SENTRY_DSN: z.string().optional(),
@@ -53,5 +63,19 @@ if (!parsed.success) {
   throw new Error("Invalid environment variables — see logs above.");
 }
 
-export const env = parsed.data;
+// Resolve the two preview-friendly fallbacks. On Vercel Preview these come from
+// VERCEL_URL / the pooled DATABASE_URL; everywhere else they are set explicitly.
+const vercelOrigin = parsed.data.VERCEL_URL ? `https://${parsed.data.VERCEL_URL}` : undefined;
+const betterAuthUrl = parsed.data.BETTER_AUTH_URL ?? vercelOrigin;
+
+if (!betterAuthUrl) {
+  console.error("❌ BETTER_AUTH_URL is required (and no VERCEL_URL fallback is available).");
+  throw new Error("BETTER_AUTH_URL is required — see logs above.");
+}
+
+export const env = {
+  ...parsed.data,
+  BETTER_AUTH_URL: betterAuthUrl,
+  DIRECT_DATABASE_URL: parsed.data.DIRECT_DATABASE_URL ?? parsed.data.DATABASE_URL,
+};
 export type Env = typeof env;
