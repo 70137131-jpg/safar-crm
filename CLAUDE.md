@@ -93,7 +93,7 @@ Do not start Phase 2 until Phase 1 is in daily use.
 
 ## Commands
 
-Package manager is **pnpm** (see `pnpm-workspace.yaml`). Node ≥ 20 (`.nvmrc`).
+Package manager is **pnpm** (see `pnpm-workspace.yaml`). Node ≥ 22.13 (`.nvmrc`; pnpm 11 requires it).
 
 | Task | Command |
 | --- | --- |

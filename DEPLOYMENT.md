@@ -8,7 +8,7 @@ Target platform: **Vercel** (Next.js 16) + **Neon** (PostgreSQL) + **Cloudflare 
 
 ## 0. Prerequisites
 
-- Node ≥ 20 (`.nvmrc` pins the version), `pnpm`.
+- Node ≥ 22.13 (`.nvmrc` pins the version; pnpm 11 requires ≥ 22.13), `pnpm`.
 - Accounts: Vercel, Neon, Cloudflare (R2), Resend, Sentry.
 - A clone of this repo connected to a Git remote Vercel can import.
 
