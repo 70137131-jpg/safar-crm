@@ -102,9 +102,8 @@ jobs:
           sudo install /tmp/gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      # Advisory for now: this gate has not yet been verified clean against the
-      # full history in CI. Once a run is confirmed green, drop
-      # `continue-on-error` to make leaked secrets block merges.
+      # Blocking: a detected secret fails the job. Verified clean against the
+      # full git history in CI before enabling (run on PR #5). The allowlist for
+      # committed placeholders / fake CI creds lives in .gitleaks.toml.
       - name: Scan working tree + git history
-        continue-on-error: true
         run: gitleaks detect --source . --config .gitleaks.toml --redact --no-banner --verbose --exit-code 1
