@@ -12,3 +12,20 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+
+# Dependency-audit allowlist (consumed by `pnpm audit` in the security CI gate).
+# Each entry is a high/critical advisory that only affects transitive
+# dev/build tooling (never the deployed runtime), with no upstream fix we can
+# pull without forking a dependency. Review on every dependency bump: drop an
+# entry the moment its parent package ships a patched range.
+auditConfig:
+  ignoreGhsas:
+    # vitest <3.2.6 — UI server arbitrary file read/exec. Test-only, pulled via
+    # better-auth's own test deps. Not present at runtime. (critical)
+    - GHSA-5xrq-8626-4rwp
+    # rollup 3.x path traversal on file write. Build-time only, via
+    # @sentry/nextjs's bundler plugins. (high)
+    - GHSA-mw96-cpmx-2vgc
+    # vite server.fs.deny bypass (Windows). Dev-server only, via better-auth's
+    # test deps. We deploy on Linux and never expose the vite dev server. (high)
+    - GHSA-fx2h-pf6j-xcff

@@ -1,0 +1,43 @@
+name: CodeQL
+
+# GitHub's semantic code-analysis for JavaScript/TypeScript. Findings are
+# uploaded as code-scanning alerts (Security tab / PR annotations); the job
+# itself succeeds on a clean analysis, so adding this does not turn CI red.
+# extraction.md §6 ("Add CodeQL for JavaScript/TypeScript").
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Weekly, Monday 06:42 UTC — re-runs queries as new ones ship.
+    - cron: "42 6 * * 1"
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-extended adds higher-signal security queries on top of the
+          # default suite. Drop to default if alert volume is too noisy.
+          queries: security-extended
+
+      # No compiled build needed for JS/TS; CodeQL extracts source directly.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
