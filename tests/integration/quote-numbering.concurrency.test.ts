@@ -30,10 +30,10 @@ describe.skipIf(!RUN_DB_TESTS)("quote numbering under concurrency (real DB)", ()
     // Every number is unique — no duplicates under concurrency.
     expect(new Set(numbers).size).toBe(N);
 
-    // Every number carries the QT-<year> prefix.
+    // Every number carries the SQ-<year> prefix.
     const year = new Date().getFullYear();
     for (const n of numbers) {
-      expect(n.startsWith(`QT-${year}-`)).toBe(true);
+      expect(n.startsWith(`SQ-${year}-`)).toBe(true);
     }
 
     // The numeric suffixes form a contiguous run once sorted (gap-free) — the

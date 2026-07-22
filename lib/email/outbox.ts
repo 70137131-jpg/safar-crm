@@ -26,9 +26,24 @@ export interface EnqueueEmailInput {
   bodyHtml: string;
   relatedType?: string;
   relatedId?: string;
+  dedupeKey?: string;
 }
 
-export async function enqueueEmail(tx: TxClient, input: EnqueueEmailInput): Promise<void> {
+export async function enqueueEmail(tx: TxClient, input: EnqueueEmailInput): Promise<boolean> {
+  if (input.dedupeKey) {
+    const result = await tx.emailOutbox.createMany({
+      data: [{
+        toEmail: input.toEmail,
+        subject: input.subject,
+        bodyHtml: input.bodyHtml,
+        relatedType: input.relatedType ?? null,
+        relatedId: input.relatedId ?? null,
+        dedupeKey: input.dedupeKey,
+      }],
+      skipDuplicates: true,
+    });
+    return result.count === 1;
+  }
   await tx.emailOutbox.create({
     data: {
       toEmail: input.toEmail,
@@ -38,6 +53,7 @@ export async function enqueueEmail(tx: TxClient, input: EnqueueEmailInput): Prom
       relatedId: input.relatedId ?? null,
     },
   });
+  return true;
 }
 
 export interface DrainResult {

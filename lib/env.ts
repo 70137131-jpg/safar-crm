@@ -11,10 +11,10 @@ const envSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
-  // Direct (non-pooled) URL — migrations + admin scripts only (lib/db-direct.ts,
-  // never imported at app runtime). Optional so Vercel Preview works: Neon's
-  // branch-per-preview injects only DATABASE_URL, and a preview branch is already
-  // migrated, so we fall back to DATABASE_URL below. Prod + CI set this explicitly.
+  // Direct (non-pooled) URL for Prisma migrations. Optional so Vercel Preview
+  // works: Neon's branch-per-preview injects only DATABASE_URL, and a preview
+  // branch is already migrated, so we fall back to DATABASE_URL below.
+  // Prod + CI set this explicitly.
   DIRECT_DATABASE_URL: z.string().url().optional(),
 
   // Better Auth

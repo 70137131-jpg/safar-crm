@@ -187,6 +187,7 @@ model User {
   auditLogs           AuditLog[]           @relation("AuditLogActor")
   leadStatusEvents    LeadStatusEvent[]    @relation("LeadStatusEventBy")
   bookingStatusEvents BookingStatusEvent[] @relation("BookingStatusEventBy")
+  importRuns          ImportRun[]
 }
 
 // =============================================================
@@ -768,6 +769,12 @@ enum EmailStatus {
   FAILED
 }
 
+enum ImportRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 /// Transactional email outbox. Services enqueue a row in the SAME transaction
 /// as the triggering mutation; an idempotent drain cron sends via Resend and
 /// marks SENT/FAILED. Emails link to gated download pages — never embed signed
@@ -782,6 +789,7 @@ model EmailOutbox {
   maxAttempts Int         @default(5)
   relatedType String? /// e.g. "Quotation"
   relatedId   String?     @db.Uuid
+  dedupeKey   String?     @unique /// optional idempotency key for scheduled/system email
   lastError   String?
   scheduledAt DateTime    @default(now()) @db.Timestamptz(6)
   sentAt      DateTime?   @db.Timestamptz(6)
@@ -790,4 +798,24 @@ model EmailOutbox {
 
   @@index([status, scheduledAt])
   @@index([relatedType, relatedId])
+}
+
+/// Durable history for customer CSV/XLSX imports and their row-level errors.
+model ImportRun {
+  id           String          @id @default(uuid()) @db.Uuid
+  fileName     String
+  fileType     String
+  status       ImportRunStatus @default(RUNNING)
+  totalRows    Int             @default(0)
+  successCount Int             @default(0)
+  errorCount   Int             @default(0)
+  errors       Json?
+  createdById  String          @db.Uuid
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  completedAt  DateTime?       @db.Timestamptz(6)
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([createdById, createdAt(sort: Desc)])
 }

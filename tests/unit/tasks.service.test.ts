@@ -3,15 +3,20 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 
 /** Unit tests for the tasks service — RBAC/ownership, assignment rules, and the idempotent sweeps. */
 
+const dbUserFindMany = vi.fn();
 vi.mock("@/lib/db", () => ({
-  db: { $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn({})) },
+  db: {
+    user: { findMany: (...args: unknown[]) => dbUserFindMany(...args) },
+    $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn({})),
+  },
 }));
 vi.mock("@/lib/audit", () => ({
   withAudit: vi.fn(async (_e: unknown, fn: (tx: unknown) => Promise<unknown>) => fn({})),
   logAudit: vi.fn(),
 }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("@/lib/email/outbox", () => ({ enqueueEmail: vi.fn() }));
+const enqueueEmail = vi.fn();
+vi.mock("@/lib/email/outbox", () => ({ enqueueEmail }));
 
 const mockSettings = { getNotificationConfig: vi.fn() };
 vi.mock("@/modules/settings/settings.service", () => mockSettings);
@@ -58,12 +63,33 @@ function taskRecord(over: Partial<Record<string, unknown>> = {}) {
 
 const allEnabled = {
   notifyPassportExpiry: true, notifyPaymentDue: true, notifyOverdueTasks: true,
+  notifyDailySummary: false,
   passportExpiryWarnDays: 180, paymentDueWarnDays: 7, overdueTaskWarnDays: 1,
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockSettings.getNotificationConfig.mockResolvedValue(allEnabled);
+});
+
+describe("daily summary sweep", () => {
+  it("does nothing while the setting is disabled", async () => {
+    expect(await service.sweepDailySummary()).toEqual({ recipients: 0, queued: 0 });
+    expect(dbUserFindMany).not.toHaveBeenCalled();
+  });
+
+  it("queues one deduplicated digest per recipient with due work", async () => {
+    mockSettings.getNotificationConfig.mockResolvedValue({ ...allEnabled, notifyDailySummary: true });
+    dbUserFindMany.mockResolvedValue([
+      { id: "agent-1", name: "Agent", email: "g@s", assignedTasks: [{ dueDate: new Date("2020-01-01") }] },
+    ]);
+    enqueueEmail.mockResolvedValue(true);
+    expect(await service.sweepDailySummary()).toEqual({ recipients: 1, queued: 1 });
+    expect(enqueueEmail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ dedupeKey: expect.stringContaining("daily-summary:") }),
+    );
+  });
 });
 
 describe("createTask assignment rules", () => {

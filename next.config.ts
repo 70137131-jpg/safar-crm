@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   // (lucide-react is already optimized by Next's default list; Recharts is not.)
   experimental: {
     optimizePackageImports: ["recharts"],
+    serverActions: { bodySizeLimit: "25mb" },
   },
   // Pin the workspace root to this project. Without this, Next infers the root
   // from a stray lockfile in the home directory. Providing an explicit turbopack
