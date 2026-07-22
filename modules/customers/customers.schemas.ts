@@ -179,4 +179,10 @@ export const importCustomerRowSchema = z.object({
   address: addressSchema,
   notes: notesSchema,
 });
+
+export const customerImportRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  fileType: z.enum(["csv", "xlsx"]),
+  rows: z.array(z.record(z.unknown())).max(MAX_IMPORT_ROWS),
+});
 export type ImportCustomerRow = z.infer<typeof importCustomerRowSchema>;

@@ -61,8 +61,23 @@ export interface ImportRowResult {
 
 /** Overall import result. */
 export interface ImportResult {
+  runId?: string;
   totalRows: number;
   successCount: number;
   errorCount: number;
   errors: ImportRowResult[];
+}
+
+export interface ImportRunDTO {
+  id: string;
+  fileName: string;
+  fileType: string;
+  status: "RUNNING" | "COMPLETED" | "FAILED";
+  totalRows: number;
+  successCount: number;
+  errorCount: number;
+  errors: ImportRowResult[];
+  createdBy: { id: string; name: string };
+  createdAt: Date;
+  completedAt: Date | null;
 }

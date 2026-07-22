@@ -14,6 +14,7 @@ import {
 import Papa from "papaparse";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
+import { parseXlsx } from "@/lib/import/xlsx";
 import { importCustomersAction } from "@/modules/customers/customers.actions";
 import type { ImportResult } from "@/modules/customers/customers.types";
 import { Button } from "@/components/ui/button";
@@ -81,13 +82,14 @@ export function ImportClient() {
   const [step, setStep] = useState<Step>("upload");
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
+  const [fileType, setFileType] = useState("csv");
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
 
-    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
-      toast.error("XLSX import isn't available yet — please export to CSV for now.");
+    if (file.name.toLowerCase().endsWith(".xls")) {
+      toast.error("Legacy .xls files aren't supported. Save the workbook as .xlsx or CSV.");
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
@@ -95,8 +97,15 @@ export function ImportClient() {
       return;
     }
 
-    const text = await file.text();
-    const parsed = parseCSV(text);
+    const isXlsx = file.name.toLowerCase().endsWith(".xlsx");
+    setFileType(isXlsx ? "xlsx" : "csv");
+    let parsed: Record<string, string>[];
+    try {
+      parsed = isXlsx ? await parseXlsx(file) : parseCSV(await file.text());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not read this file.");
+      return;
+    }
     if (parsed.length === 0) {
       toast.error("No valid rows found in the file.");
       return;
@@ -122,15 +131,16 @@ export function ImportClient() {
 
   const handleImport = useCallback(async () => {
     setStep("importing");
-    const res = await importCustomersAction(rows);
+    const res = await importCustomersAction({ fileName, fileType, rows });
     if (res.ok) {
       setResult(res.data);
       setStep("result");
+      router.refresh();
     } else {
       toast.error(res.message);
       setStep("preview");
     }
-  }, [rows]);
+  }, [fileName, fileType, rows, router]);
 
   // ── Upload step ────────────────────────────────────────────────────────
 
@@ -144,7 +154,7 @@ export function ImportClient() {
       >
         <Upload className="mb-4 h-10 w-10 text-muted-foreground" />
         <p className="text-sm font-medium">
-          Drop a CSV file here, or click to browse
+          Drop a CSV or XLSX file here, or click to browse
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           Expected columns: {EXPECTED_COLUMNS.join(", ")}
@@ -152,7 +162,7 @@ export function ImportClient() {
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,.xlsx,.xls"
+          accept=".csv,.xlsx"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
