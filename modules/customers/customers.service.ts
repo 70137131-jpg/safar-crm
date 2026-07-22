@@ -13,12 +13,14 @@ import type {
   SearchCustomersInput,
   ImportCustomerRow,
 } from "./customers.schemas";
+import { importCustomerRowSchema } from "./customers.schemas";
 import type {
   CustomerDTO,
   CustomerListItem,
   PaginatedResult,
   ImportResult,
   ImportRowResult,
+  ImportRunDTO,
 } from "./customers.types";
 
 /**
@@ -375,13 +377,39 @@ function importErrorMessage(err: unknown): string {
 
 export async function importCustomers(
   user: UserContext,
-  rows: ImportCustomerRow[],
+  rawRows: Record<string, unknown>[],
+  meta?: { fileName: string; fileType: string },
 ): Promise<ImportResult> {
   requirePermission(user, "customers:import");
 
   const results: ImportRowResult[] = [];
+  const rows: Array<{ rowNumber: number; data: ImportCustomerRow }> = [];
   let successCount = 0;
   let errorCount = 0;
+
+  for (let index = 0; index < rawRows.length; index++) {
+    const parsed = importCustomerRowSchema.safeParse(rawRows[index]);
+    if (parsed.success) {
+      rows.push({ rowNumber: index + 1, data: parsed.data });
+    } else {
+      errorCount++;
+      results.push({
+        row: index + 1,
+        success: false,
+        name: String(rawRows[index]?.name ?? `Row ${index + 1}`),
+        error: parsed.error.issues.map((issue) => issue.message).join("; "),
+      });
+    }
+  }
+
+  const run = meta
+    ? await repo.createImportRun({
+        fileName: meta.fileName,
+        fileType: meta.fileType,
+        totalRows: rawRows.length,
+        createdById: user.id,
+      })
+    : null;
 
   // Insert in chunks of 200 (ARCHITECTURE.md §2.12). Each row runs inside a
   // SAVEPOINT so a single bad row (e.g. a within-file duplicate that trips the
@@ -389,13 +417,15 @@ export async function importCustomers(
   // usable — otherwise the first failed INSERT would abort every later row.
   const CHUNK_SIZE = 200;
 
-  for (let chunkStart = 0; chunkStart < rows.length; chunkStart += CHUNK_SIZE) {
+  try {
+    for (let chunkStart = 0; chunkStart < rows.length; chunkStart += CHUNK_SIZE) {
     const chunk = rows.slice(chunkStart, chunkStart + CHUNK_SIZE);
 
     await db.$transaction(async (tx) => {
       for (let i = 0; i < chunk.length; i++) {
-        const row = chunk[i]!;
-        const rowNum = chunkStart + i + 1;
+        const item = chunk[i]!;
+        const row = item.data;
+        const rowNum = item.rowNumber;
         const phone = row.phone ? normalizePakistaniPhone(row.phone) : null;
 
         await tx.$executeRawUnsafe("SAVEPOINT import_row");
@@ -455,12 +485,56 @@ export async function importCustomers(
         }
       }
     });
+    }
+  } catch (error) {
+    if (run) {
+      await repo.updateImportRun(run.id, {
+        status: "FAILED",
+        successCount,
+        errorCount: errorCount + 1,
+        errors: [
+          ...results.filter((result) => !result.success),
+          { row: 0, success: false, error: importErrorMessage(error) },
+        ] as unknown as Prisma.InputJsonValue,
+        completedAt: new Date(),
+      });
+    }
+    throw error;
   }
 
-  return {
-    totalRows: rows.length,
+  const result: ImportResult = {
+    ...(run ? { runId: run.id } : {}),
+    totalRows: rawRows.length,
     successCount,
     errorCount,
     errors: results.filter((r) => !r.success),
   };
+  if (run) {
+    await repo.updateImportRun(run.id, {
+      status: "COMPLETED",
+      successCount,
+      errorCount,
+      errors: result.errors as unknown as Prisma.InputJsonValue,
+      completedAt: new Date(),
+    });
+  }
+  return result;
+}
+
+export async function listImportRuns(user: UserContext): Promise<ImportRunDTO[]> {
+  requirePermission(user, "customers:import");
+  const rows = await repo.listImportRuns();
+  return rows.map((row) => ({
+    id: row.id,
+    fileName: row.fileName,
+    fileType: row.fileType,
+    status: row.status,
+    totalRows: row.totalRows,
+    successCount: row.successCount,
+    errorCount: row.errorCount,
+    errors: Array.isArray(row.errors) ? row.errors as unknown as ImportRowResult[] : [],
+    createdBy: row.createdBy,
+    createdAt: row.createdAt,
+    completedAt: row.completedAt,
+  }));
 }
