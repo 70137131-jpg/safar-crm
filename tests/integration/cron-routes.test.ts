@@ -15,7 +15,8 @@ vi.mock("@/lib/logger", () => ({
 const sweepReminders = vi.fn(async () => ({ scanned: 0, emailed: 0 }));
 const sweepPassportExpiry = vi.fn(async () => ({ created: 0 }));
 const sweepPaymentDue = vi.fn(async () => ({ created: 0 }));
-vi.mock("@/modules/tasks/tasks.service", () => ({ sweepReminders, sweepPassportExpiry, sweepPaymentDue }));
+const sweepDailySummary = vi.fn(async () => ({ recipients: 0, queued: 0 }));
+vi.mock("@/modules/tasks/tasks.service", () => ({ sweepReminders, sweepPassportExpiry, sweepPaymentDue, sweepDailySummary }));
 
 const sweepQuotationExpiry = vi.fn(async () => ({ expired: 0 }));
 vi.mock("@/modules/quotations/quotations.service", () => ({ sweepQuotationExpiry }));
@@ -30,6 +31,7 @@ type RouteMod = { GET: (req: Request) => Promise<Response> };
 
 const ROUTES = [
   { name: "sweep-reminders", sweep: sweepReminders, load: () => import("@/app/api/cron/sweep-reminders/route") },
+  { name: "daily-summary", sweep: sweepDailySummary, load: () => import("@/app/api/cron/daily-summary/route") },
   { name: "sweep-passport-expiry", sweep: sweepPassportExpiry, load: () => import("@/app/api/cron/sweep-passport-expiry/route") },
   { name: "sweep-payment-due", sweep: sweepPaymentDue, load: () => import("@/app/api/cron/sweep-payment-due/route") },
   { name: "sweep-quotation-expiry", sweep: sweepQuotationExpiry, load: () => import("@/app/api/cron/sweep-quotation-expiry/route") },
