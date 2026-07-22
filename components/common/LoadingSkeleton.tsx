@@ -5,20 +5,6 @@ export function LoadingSkeleton({ className }: { className?: string }) {
   return <Skeleton className={cn("rounded-md", className)} />;
 }
 
-export function PageSkeleton() {
-  return (
-    <div className="space-y-3">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-4 w-72" />
-      <div className="mt-6 space-y-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-    </div>
-  );
-}
-
 /**
  * Loading placeholder shaped like a data table — a header row plus body rows
  * with one cell per column, so the skeleton mirrors the real content.
