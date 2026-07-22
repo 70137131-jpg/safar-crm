@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Phase 0 (scaffold) and most of Phase 1 are built. The 14 modules under `modules/` (users, customers, leads, interactions, tasks, bookings, payments, quotations, documents, + dashboard/settings/reports/invoices stubs) are present with services, repositories, actions, schemas, and unit tests; Prisma schema + migrations and Better Auth are wired. `TASKS.md` is the live checklist — the still-open Phase 1 work is **Dashboard (1.10), Settings (1.11), Audit-log viewer (1.12), critical-path Playwright (1.13), production readiness (1.14)**, plus a few `[~]` decisions (email-invite onboarding, `ImportRun` history table, XLSX import). Note: every Phase 0 checkbox in `TASKS.md` still reads `[ ]` despite being done — those boxes are stale, not real work.
+Phase 0 and the Phase 1 application modules are built, including invoices, package templates, persistent CSV/XLSX imports, daily summaries, dashboard, settings, reports, and audit viewing. Remaining release work is primarily staging E2E breadth and production operations (`crm_app`, providers, monitoring, and backup verification). Note: several early Phase 0 checkboxes in `TASKS.md` are historical and remain stale despite the implementation being present.
 
 ## Source of truth (read in this order)
 
@@ -58,7 +58,7 @@ app/                    Next.js routes only (thin)
   login/  signup/       public auth pages
 modules/<name>/         <name>.actions.ts, <name>.service.ts, <name>.repository.ts,
                         <name>.schemas.ts, <name>.types.ts  (files are name-prefixed)
-lib/                    auth, db.ts/db-direct.ts, audit, errors, logger, money, phone,
+lib/                    auth, db.ts, audit, errors, logger, money, phone,
                         storage, email, numbering, time, env, permissions, charts, hooks, cn.ts
 components/             shared UI: ui/ (shadcn primitives) + charts, common, forms, tables, layout, …
 prisma/                 schema.prisma, migrations, seed.ts

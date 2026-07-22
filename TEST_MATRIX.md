@@ -76,7 +76,7 @@ As of 2026-06-20: U/I = **246 tests, all green**; E = auth/customers/documents s
 | PDF generation | U | 🟡 generator unit-covered; E render ⛔ |
 | Upload to R2 / Email send | U,I | 🟡 service + outbox drain (integration) |
 | Accept / Expire (cron) | U | ✅ |
-| Numbering (QT/SQ-YYYY-NNNNN) | U | ✅ (`numbering.test` + sequence) |
+| Numbering (SQ-YYYY-NNNNNN) | U | ✅ (`numbering.test` + sequence) |
 
 ## Invoices
 | Flow | Layer | Status |
@@ -119,7 +119,7 @@ As of 2026-06-20: U/I = **246 tests, all green**; E = auth/customers/documents s
 | Dialogs / drawers open | 🟡 implemented; assert in E2E |
 | Touch targets ≥ 44px | ⛔ assert in E2E |
 
-## Cron (all six)
+## Cron (all seven)
 | Job | Layer | Status |
 |-----|-------|--------|
 | drain-email-outbox | I | ✅ auth; idempotent via SKIP LOCKED |
@@ -128,6 +128,7 @@ As of 2026-06-20: U/I = **246 tests, all green**; E = auth/customers/documents s
 | sweep-payment-due | I | ✅ |
 | sweep-quotation-expiry | I | ✅ |
 | sweep-document-expiry | I | ✅ |
+| daily-summary | U/I | ✅ setting gate + deduplicated enqueue + route auth |
 | Failure → Sentry tagged `cron:*` | — | ✅ added this pass |
 
 ---

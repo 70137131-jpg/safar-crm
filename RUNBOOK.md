@@ -24,7 +24,7 @@ Day-2 operations: go-live checks, secret rotation, incident response, cron opera
 - **App:** Vercel (Next.js 16). Rollback = re-promote previous deployment.
 - **DB:** Neon Postgres. Pooled URL at runtime (`crm_app`), direct URL for migrations (owner).
 - **Files:** Cloudflare R2 private bucket; bytes leave only via 5-min signed URLs through `/api/documents/[id]/download`.
-- **Email:** Resend via the DB outbox; `drain-email-outbox` cron every 5 min.
+- **Email:** Resend via the DB outbox; `drain-email-outbox` cron daily at 06:00 UTC on the current Vercel Hobby-plan schedule.
 - **Authz:** enforced in services (`requirePermission`/`can`), not middleware.
 - **Audit:** every mutation writes an `AuditLog` row in-transaction.
 
@@ -41,6 +41,13 @@ SELECT count(*) FROM "AuditLog";
 -- should FAIL with "permission denied for table AuditLog":
 UPDATE "AuditLog" SET action = 'tamper' WHERE id = (SELECT id FROM "AuditLog" LIMIT 1);
 DELETE FROM "AuditLog" WHERE false;
+```
+
+The repository also provides a non-mutating runtime check using the configured
+`DATABASE_URL`:
+
+```bash
+pnpm db:verify-runtime-role
 ```
 If the UPDATE/DELETE **succeed**, immutability is NOT active. **Repair** (as owner):
 ```sql
