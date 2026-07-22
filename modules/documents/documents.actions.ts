@@ -6,7 +6,6 @@ import {
   createUploadUrlSchema,
   confirmUploadSchema,
   listDocumentsSchema,
-  updateDocumentSchema,
 } from "./documents.schemas";
 import type { DocumentDTO, UploadTicket } from "./documents.types";
 import * as service from "./documents.service";
@@ -50,32 +49,10 @@ export const getDocumentsAction = serverAction(
   },
 );
 
-export const updateDocumentAction = serverAction(
-  "documents.update",
-  async (id: string, input: Record<string, unknown>): Promise<DocumentDTO> => {
-    const user = await requireUser();
-    const parsed = updateDocumentSchema.parse(input);
-    return service.updateDocument(user, id, parsed);
-  },
-);
-
 export const deleteDocumentAction = serverAction(
   "documents.delete",
   async (id: string): Promise<DocumentDTO> => {
     const user = await requireUser();
     return service.deleteDocument(user, id);
-  },
-);
-
-/**
- * Returns a fresh 5-min signed download URL. The gated route is the primary
- * download path; this exists for clients that prefer fetching the URL directly
- * (it performs the same permission check + audit).
- */
-export const getDocumentDownloadUrlAction = serverAction(
-  "documents.downloadUrl",
-  async (id: string): Promise<{ url: string; fileName: string }> => {
-    const user = await requireUser();
-    return service.getDownloadUrl(user, id);
   },
 );

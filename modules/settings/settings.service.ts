@@ -83,6 +83,7 @@ export interface NotificationConfig {
   notifyPassportExpiry: boolean;
   notifyPaymentDue: boolean;
   notifyOverdueTasks: boolean;
+  notifyDailySummary: boolean;
   passportExpiryWarnDays: number;
   paymentDueWarnDays: number;
   overdueTaskWarnDays: number;
@@ -98,6 +99,7 @@ export async function getNotificationConfig(): Promise<NotificationConfig> {
     notifyPassportExpiry: row?.notifyPassportExpiry ?? DEFAULTS.notifyPassportExpiry,
     notifyPaymentDue: row?.notifyPaymentDue ?? DEFAULTS.notifyPaymentDue,
     notifyOverdueTasks: row?.notifyOverdueTasks ?? DEFAULTS.notifyOverdueTasks,
+    notifyDailySummary: row?.notifyDailySummary ?? DEFAULTS.notifyDailySummary,
     passportExpiryWarnDays: row?.passportExpiryWarnDays ?? DEFAULTS.passportExpiryWarnDays,
     paymentDueWarnDays: row?.paymentDueWarnDays ?? DEFAULTS.paymentDueWarnDays,
     overdueTaskWarnDays: row?.overdueTaskWarnDays ?? DEFAULTS.overdueTaskWarnDays,

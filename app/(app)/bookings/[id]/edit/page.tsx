@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { getBookingAction } from "@/modules/bookings/bookings.actions";
+import { listActivePackagesAction } from "@/modules/packages/packages.actions";
 import { BookingForm } from "../../BookingForm";
 
 interface Props {
@@ -15,7 +16,10 @@ export const metadata: Metadata = {
 
 export default async function EditBookingPage({ params }: Props) {
   const { id } = await params;
-  const result = await getBookingAction(id);
+  const [result, packagesResult] = await Promise.all([
+    getBookingAction(id),
+    listActivePackagesAction(),
+  ]);
   if (!result.ok) notFound();
 
   // A cancelled booking is read-only — the service rejects edits, so don't even
@@ -37,7 +41,11 @@ export default async function EditBookingPage({ params }: Props) {
         <h1 className="mb-6 text-xl font-semibold tracking-tight">
           Edit Booking
         </h1>
-        <BookingForm mode="edit" booking={result.data} />
+        <BookingForm
+          mode="edit"
+          booking={result.data}
+          packages={packagesResult.ok ? packagesResult.data : []}
+        />
       </div>
     </PageWrapper>
   );

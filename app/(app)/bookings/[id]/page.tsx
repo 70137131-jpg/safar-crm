@@ -38,6 +38,12 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
     canRefund: !!user && can(user, "payments:refund"),
     cashOnly: user?.role === "AGENT",
   };
+  const invoiceCaps = {
+    canView: !!user && can(user, "invoices:view"),
+    canCreate: !!user && can(user, "invoices:create"),
+    canUpdate: !!user && can(user, "invoices:update"),
+    canVoid: !!user && can(user, "invoices:void"),
+  };
 
   return (
     <PageWrapper>
@@ -52,6 +58,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         booking={result.data}
         caps={caps}
         paymentCaps={paymentCaps}
+        invoiceCaps={invoiceCaps}
         initialTab={tab}
       />
     </PageWrapper>

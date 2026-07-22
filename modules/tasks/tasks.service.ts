@@ -6,6 +6,7 @@ import { withAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { enqueueEmail } from "@/lib/email/outbox";
+import { pktDateString, pktStartOfDay } from "@/lib/time/tz";
 import { getNotificationConfig } from "@/modules/settings/settings.service";
 import * as repo from "./tasks.repository";
 import type { CreateTaskInput, UpdateTaskInput, AssignTaskInput, ListTasksInput } from "./tasks.schemas";
@@ -277,4 +278,47 @@ export async function sweepPaymentDue(): Promise<{ created: number }> {
   const created = data.length ? await repo.createManySkipDuplicates(data) : 0;
   logger.info({ created, candidates: candidates.length }, "tasks.sweep_payment_due");
   return { created };
+}
+
+/** Queue one idempotent daily digest per active staff member with due work. */
+export async function sweepDailySummary(): Promise<{ recipients: number; queued: number }> {
+  const config = await getNotificationConfig();
+  if (!config.notifyDailySummary) return { recipients: 0, queued: 0 };
+
+  const now = new Date();
+  const today = pktStartOfDay(now);
+  const tomorrow = new Date(today.getTime() + MS_PER_DAY);
+  const digestDate = pktDateString(now);
+  const recipients = await db.user.findMany({
+    where: { deactivatedAt: null },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      assignedTasks: {
+        where: { status: "OPEN", dueDate: { lt: tomorrow } },
+        select: { dueDate: true },
+      },
+    },
+  });
+
+  let queued = 0;
+  for (const recipient of recipients) {
+    if (recipient.assignedTasks.length === 0) continue;
+    const overdue = recipient.assignedTasks.filter((task) => task.dueDate < today).length;
+    const dueToday = recipient.assignedTasks.length - overdue;
+    const created = await db.$transaction((tx) =>
+      enqueueEmail(tx, {
+        toEmail: recipient.email,
+        subject: `Safar CRM daily summary — ${digestDate}`,
+        bodyHtml: `<p>Hello,</p><p>You have <strong>${dueToday}</strong> task${dueToday === 1 ? "" : "s"} due today and <strong>${overdue}</strong> overdue.</p><p>Open Safar CRM to review your task list.</p>`,
+        relatedType: "DailySummary",
+        dedupeKey: `daily-summary:${digestDate}:${recipient.id}`,
+      }),
+    );
+    if (created) queued++;
+  }
+
+  logger.info({ recipients: recipients.length, queued, digestDate }, "tasks.sweep_daily_summary");
+  return { recipients: recipients.length, queued };
 }
