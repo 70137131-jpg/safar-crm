@@ -15,6 +15,8 @@ import {
   Ban,
   ArrowRight,
   ListChecks,
+  ReceiptText,
+  PackageOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { CancelReason } from "@prisma/client";
@@ -44,6 +46,7 @@ import type {
 } from "@/modules/bookings/bookings.types";
 import { CreateTaskDialog } from "../../tasks/CreateTaskDialog";
 import { PaymentsPanel, type PaymentCaps } from "./PaymentsPanel";
+import { InvoicesPanel, type InvoiceCaps } from "./InvoicesPanel";
 import {
   BOOKING_STATUS_META,
   BOOKING_ADVANCE_ACTION,
@@ -61,18 +64,20 @@ const textareaCls =
 const TABS = [
   { id: "overview", label: "Overview", icon: Info },
   { id: "payments", label: "Payments", icon: Wallet },
+  { id: "invoices", label: "Invoices", icon: ReceiptText },
   { id: "history", label: "History", icon: History },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 function isTabId(v: string | undefined): v is TabId {
-  return v === "overview" || v === "payments" || v === "history";
+  return v === "overview" || v === "payments" || v === "invoices" || v === "history";
 }
 
 export function BookingDetailClient({
   booking: initial,
   caps,
   paymentCaps,
+  invoiceCaps,
   initialTab,
 }: {
   booking: BookingDTO;
@@ -83,6 +88,7 @@ export function BookingDetailClient({
     canAssignTask: boolean;
   };
   paymentCaps: PaymentCaps;
+  invoiceCaps: InvoiceCaps;
   initialTab?: string;
 }) {
   const router = useRouter();
@@ -91,7 +97,7 @@ export function BookingDetailClient({
   // `key={booking.id}`, so navigating between bookings re-seeds it correctly.
   const [booking, setBooking] = useState<BookingDTO>(initial);
   const [activeTab, setActiveTab] = useState<TabId>(
-    isTabId(initialTab) ? initialTab : "overview",
+    isTabId(initialTab) && (initialTab !== "invoices" || invoiceCaps.canView) ? initialTab : "overview",
   );
   const [cancelOpen, setCancelOpen] = useState(false);
 
@@ -104,6 +110,7 @@ export function BookingDetailClient({
   const advance = BOOKING_ADVANCE_ACTION[booking.status];
   const isTerminal = booking.status === "CANCELLED" || booking.status === "COMPLETED";
   const isCancelled = booking.status === "CANCELLED";
+  const visibleTabs = TABS.filter((tab) => tab.id !== "invoices" || invoiceCaps.canView);
 
   async function handleAdvance() {
     if (!advance) return;
@@ -214,6 +221,11 @@ export function BookingDetailClient({
             label="Travel Date"
             value={formatBookingDate(booking.travelDate)}
           />
+          <Field
+            icon={<PackageOpen className="h-4 w-4" />}
+            label="Package"
+            value={booking.packageSnapshot?.title ?? booking.package?.title}
+          />
         </div>
       </div>
 
@@ -242,7 +254,7 @@ export function BookingDetailClient({
       {/* Tabs */}
       <div className="border-b">
         <nav className="-mb-px flex gap-0 overflow-x-auto">
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
@@ -272,6 +284,9 @@ export function BookingDetailClient({
             bookingStatus={booking.status}
             caps={paymentCaps}
           />
+        )}
+        {activeTab === "invoices" && (
+          <InvoicesPanel bookingId={booking.id} caps={invoiceCaps} />
         )}
         {activeTab === "history" && <HistoryTab bookingId={booking.id} />}
       </div>
