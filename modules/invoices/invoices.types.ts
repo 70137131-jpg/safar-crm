@@ -6,6 +6,7 @@ export interface InvoiceDTO {
   invoiceNumber: string;
   bookingId: string;
   bookingNumber: string | null;
+  customerName: string | null;
   amountPaisa: bigint;
   status: InvoiceStatus;
   issuedAt: Date;
@@ -20,6 +21,7 @@ export interface InvoiceListItem {
   invoiceNumber: string;
   bookingId: string;
   bookingNumber: string | null;
+  customerName: string | null;
   amountPaisa: bigint;
   status: InvoiceStatus;
   issuedAt: Date;

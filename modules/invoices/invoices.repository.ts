@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 type TxClient = typeof db | Prisma.TransactionClient;
 
 const INCLUDE_BOOKING = {
-  booking: { select: { bookingNumber: true } },
+  booking: { select: { bookingNumber: true, customer: { select: { name: true } } } },
 } as const;
 
 const LIST_SELECT = {
@@ -19,7 +19,7 @@ const LIST_SELECT = {
   amountPaisa: true,
   status: true,
   issuedAt: true,
-  booking: { select: { bookingNumber: true } },
+  booking: { select: { bookingNumber: true, customer: { select: { name: true } } } },
 } as const;
 
 interface FindManyFilters {

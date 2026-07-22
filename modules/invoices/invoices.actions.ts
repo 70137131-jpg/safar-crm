@@ -37,14 +37,6 @@ export const voidInvoiceAction = serverAction(
   },
 );
 
-export const getInvoiceAction = serverAction(
-  "invoices.get",
-  async (id: string): Promise<InvoiceDTO> => {
-    const user = await requireUser();
-    return service.getInvoice(user, id);
-  },
-);
-
 export const listInvoicesAction = serverAction(
   "invoices.list",
   async (params: Record<string, unknown>): Promise<PaginatedResult<InvoiceListItem>> => {
