@@ -19,7 +19,7 @@ export function AppShell({ userName, userRole, children }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* Skip link — first focusable element, visible only on keyboard focus (WCAG 2.4.1). */}
       <a
         href="#main-content"
@@ -29,8 +29,8 @@ export function AppShell({ userName, userRole, children }: Props) {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
-        <AppSidebar />
+      <aside className="hidden w-[17rem] shrink-0 border-r bg-card/95 shadow-[1px_0_0_hsl(var(--border))] md:block">
+        <AppSidebar userRole={userRole} />
       </aside>
 
       {/* Mobile drawer */}
@@ -49,17 +49,17 @@ export function AppShell({ userName, userRole, children }: Props) {
         />
         <aside
           className={cn(
-            "absolute left-0 top-0 h-full w-64 border-r bg-card shadow-xl transition-transform",
+            "absolute left-0 top-0 h-full w-[17rem] border-r bg-card shadow-2xl transition-transform",
             open ? "translate-x-0" : "-translate-x-full",
           )}
         >
-          <AppSidebar onNavigate={() => setOpen(false)} />
+          <AppSidebar userRole={userRole} onNavigate={() => setOpen(false)} />
         </aside>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNavbar userName={userName} userRole={userRole} onMenuClick={() => setOpen(true)} />
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none md:p-6">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none md:p-6 lg:p-8">
           {children}
         </main>
       </div>
