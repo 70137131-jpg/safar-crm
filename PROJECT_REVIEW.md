@@ -31,20 +31,20 @@ UI (server/client components)
 ```
 app/
   (app)/            authenticated routes: dashboard, customers, leads, tasks,
-                    bookings, payments, quotations, reports, settings (+ error.tsx,
+                    bookings, payments, quotations, invoices, reports, settings (+ error.tsx,
                     loading.tsx, dashboard/scope.ts)
   api/
     auth/[...all]   Better Auth handler
-    cron/*          6 cron routes (bearer CRON_SECRET, idempotent)
+    cron/*          7 cron routes (bearer CRON_SECRET, idempotent)
     documents/[id]/download   gated download → 5-min signed URL
     healthz         DB-ping health
   login/  layout.tsx  not-found.tsx  global-error.tsx
 modules/<name>/     actions.ts · service.ts · repository.ts · schemas.ts · types.ts · (ui)
   auth users customers leads interactions tasks bookings payments
-  quotations invoices documents dashboard reports settings
+  quotations invoices documents packages dashboard reports settings
 lib/                auth · db · audit · errors · logger · money · phone · storage ·
                     email · numbering · permissions · time · env · charts · hooks · cn
-prisma/             schema.prisma · migrations (3) · seed.ts
+prisma/             schema.prisma · migrations (4) · seed.ts
 components/         ui (shadcn) · layout · common
 tests/              unit (13) · integration (1) · e2e (3) · stubs
 ```
@@ -147,7 +147,7 @@ The authoritative matrix is `ARCHITECTURE.md` §6.2 and is **machine-checked** b
 | Settings update | ✅ | view | — | — |
 | Audit view | ✅ | ✅ | — | — |
 
-## 6. Server-action inventory (86 actions)
+## 6. Server-action inventory (91 actions)
 
 All go through the `serverAction()` wrapper → `requireUser`/`requirePermission` → Zod → service → `ActionResult`. (`auth` exposes sign-in/out via the Better Auth route handler + a session action; `dashboard` is read-only server components, no actions.)
 
@@ -155,7 +155,8 @@ All go through the `serverAction()` wrapper → `requireUser`/`requirePermission
 |--------|---|---------|
 | users | 12 | listAssignableAgents, list, get, profile, create, update, deactivate, reactivate, changeRole, resetPassword, updateProfile, changePassword |
 | leads | 11 | create, update, get, list, kanban, changeStatus, assign, delete, restore, convert, history |
-| customers | 9 | create, update, delete, restore, get, list, listDeleted, search, import |
+| customers | 10 | create, update, delete, restore, get, list, listDeleted, search, import, import history |
+| packages | 4 | list, list active, create, update/archive |
 | reports | 9 | revenue, leadFunnel, agentPerformance, destination, leadSource, payments, tasks, overview, export |
 | bookings | 7 | create, update, changeStatus, cancel, get, list, history |
 | documents | 6 | createUploadUrl, confirmUpload, list, update, delete, downloadUrl |
