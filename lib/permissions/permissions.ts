@@ -79,6 +79,9 @@ export const PERMISSIONS = [
 
   // Audit
   "audit:view",
+
+  // Internal AI copilot
+  "assistant:use",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

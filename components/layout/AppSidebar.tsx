@@ -13,6 +13,7 @@ import {
   ListChecks,
   BarChart3,
   Settings as SettingsIcon,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -25,6 +26,7 @@ const NAV = [
   { label: "Quotations", href: "/quotations", icon: FileText },
   { label: "Tasks", href: "/tasks", icon: ListChecks },
   { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Ask Safar", href: "/assistant", icon: Bot },
   { label: "Settings", href: "/settings", icon: SettingsIcon },
 ] as const;
 
@@ -38,7 +40,7 @@ export function AppSidebar({
   const pathname = usePathname();
   return (
     <nav className={cn("flex h-full flex-col gap-1 p-3", className)} aria-label="Primary">
-      <div className="px-2 pb-4 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="text-muted-foreground px-2 pt-1 pb-4 text-xs font-semibold tracking-wider uppercase">
         Safar CRM
       </div>
       {NAV.map((item) => {
