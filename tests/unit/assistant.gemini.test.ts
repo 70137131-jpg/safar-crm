@@ -122,4 +122,47 @@ describe("Gemini assistant adapter", () => {
       message: "The AI service is unavailable. Please try again.",
     });
   });
+
+  it("streams text deltas while assembling the final response", async () => {
+    const sse = [
+      "event: interaction.created",
+      'data: {"event_type":"interaction.created"}',
+      "",
+      "event: step.start",
+      'data: {"event_type":"step.start","index":0,"step":{"type":"model_output"}}',
+      "",
+      "event: step.delta",
+      'data: {"event_type":"step.delta","index":0,"delta":{"type":"text","text":"Hello "}}',
+      "",
+      "event: step.delta",
+      'data: {"event_type":"step.delta","index":0,"delta":{"type":"text","text":"Safar"}}',
+      "",
+      "event: step.stop",
+      'data: {"event_type":"step.stop","index":0}',
+      "",
+      "event: interaction.completed",
+      'data: {"event_type":"interaction.completed"}',
+      "",
+      "",
+    ].join("\n");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } }),
+      );
+    const onTextDelta = vi.fn();
+
+    const result = await runGeminiAgent({
+      systemInstruction: "Answer safely.",
+      conversation: [{ role: "USER", content: "Hello" }],
+      tools: [],
+      executeTool: vi.fn(),
+      onTextDelta,
+    });
+
+    expect(result.text).toBe("Hello Safar");
+    expect(onTextDelta.mock.calls.flat()).toEqual(["Hello ", "Safar"]);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("?alt=sse");
+    expect(String(fetchMock.mock.calls[0]?.[1]?.body)).toContain('"stream":true');
+  });
 });

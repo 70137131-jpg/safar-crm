@@ -16,6 +16,9 @@ CREATE TABLE "AiMessage" (
     "conversationId" UUID NOT NULL,
     "role" "AiMessageRole" NOT NULL,
     "content" TEXT NOT NULL,
+    "model" TEXT,
+    "toolNames" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    "sourcePaths" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "AiMessage_pkey" PRIMARY KEY ("id")
 );

@@ -42,6 +42,41 @@ export async function POST(request: Request) {
   try {
     enforceAssistantRateLimit(user.id);
     const body: unknown = await request.json();
+    if (request.headers.get("accept")?.includes("text/event-stream")) {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const send = (event: string, data: unknown) => {
+            controller.enqueue(
+              encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+            );
+          };
+          void runAssistant(user, body, (text) => send("delta", { text }))
+            .then((result) => send("complete", result))
+            .catch((error: unknown) => {
+              if (!(error instanceof AppError) && !(error instanceof ZodError)) {
+                logger.error({ error }, "assistant.stream_failed");
+              }
+              send("error", {
+                error:
+                  error instanceof AppError
+                    ? error.message
+                    : error instanceof ZodError
+                      ? (error.issues[0]?.message ?? "Invalid request")
+                      : "Ask Safar could not complete the request.",
+              });
+            })
+            .finally(() => controller.close());
+        },
+      });
+      return new Response(stream, {
+        headers: {
+          "cache-control": "no-cache, no-transform",
+          "content-type": "text/event-stream; charset=utf-8",
+          "x-accel-buffering": "no",
+        },
+      });
+    }
     return NextResponse.json(await runAssistant(user, body));
   } catch (error) {
     return errorResponse(error);

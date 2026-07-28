@@ -119,24 +119,88 @@ export function AssistantClient({ configured }: { configured: boolean }) {
     setError(null);
 
     try {
+      const assistantMessageId = crypto.randomUUID();
       const response = await fetch("/api/assistant", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          accept: "text/event-stream",
+          "content-type": "application/json",
+        },
         body: JSON.stringify({ conversationId, message }),
       });
-      const body = (await response.json()) as AssistantRunDTO & { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "Ask Safar could not answer");
-      setConversationId(body.conversationId);
+      if (!response.ok || !response.body) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "Ask Safar could not answer");
+      }
+
       setMessages((current) => [
         ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: body.answer,
-          sources: body.sources,
-          proposals: body.proposals,
-        },
+        { id: assistantMessageId, role: "assistant", content: "" },
       ]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let completed = false;
+
+      function handleEvent(block: string) {
+        const event =
+          block
+            .split(/\r?\n/)
+            .find((line) => line.startsWith("event:"))
+            ?.slice(6)
+            .trim() ?? "";
+        const data = block
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trimStart())
+          .join("\n");
+        if (!data) return;
+        const payload = JSON.parse(data) as
+          | { text: string }
+          | (AssistantRunDTO & { error?: string });
+
+        if (event === "delta" && "text" in payload) {
+          setMessages((current) =>
+            current.map((item) =>
+              item.id === assistantMessageId
+                ? { ...item, content: `${item.content}${payload.text}` }
+                : item,
+            ),
+          );
+          return;
+        }
+        if (event === "complete" && "conversationId" in payload) {
+          completed = true;
+          setConversationId(payload.conversationId);
+          setMessages((current) =>
+            current.map((item) =>
+              item.id === assistantMessageId
+                ? {
+                    ...item,
+                    content: payload.answer,
+                    sources: payload.sources,
+                    proposals: payload.proposals,
+                  }
+                : item,
+            ),
+          );
+          return;
+        }
+        if (event === "error") {
+          throw new Error("error" in payload ? payload.error : "Ask Safar could not answer");
+        }
+      }
+
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() ?? "";
+        for (const block of blocks) handleEvent(block);
+        if (done) break;
+      }
+      if (buffer.trim()) handleEvent(buffer);
+      if (!completed) throw new Error("Ask Safar's response ended unexpectedly.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ask Safar could not answer");
     } finally {

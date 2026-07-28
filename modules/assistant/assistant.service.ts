@@ -47,7 +47,11 @@ async function ownedConversation(user: UserContext, conversationId: string) {
   return conversation;
 }
 
-export async function runAssistant(user: UserContext, rawInput: unknown): Promise<AssistantRunDTO> {
+export async function runAssistant(
+  user: UserContext,
+  rawInput: unknown,
+  onTextDelta?: (delta: string) => void,
+): Promise<AssistantRunDTO> {
   requirePermission(user, "assistant:use");
   if (!env.GEMINI_API_KEY) {
     throw new ValidationError(
@@ -71,9 +75,14 @@ export async function runAssistant(user: UserContext, rawInput: unknown): Promis
     })),
     tools: assistantToolDeclarations(user),
     executeTool: (name, args) => executeAssistantTool(user, conversation.id, name, args),
+    onTextDelta,
   });
 
-  await repo.addMessage(conversation.id, "ASSISTANT", result.text);
+  await repo.addMessage(conversation.id, "ASSISTANT", result.text, {
+    model: env.GEMINI_MODEL,
+    toolNames: result.toolCalls,
+    sourcePaths: result.sources.map((item) => item.href),
+  });
   await repo.touchConversation(conversation.id);
   await logAudit({
     actorId: user.id,

@@ -22,9 +22,18 @@ export async function listMessages(conversationId: string, limit = 16) {
   return rows.reverse();
 }
 
-export async function addMessage(conversationId: string, role: AiMessageRole, content: string) {
+export async function addMessage(
+  conversationId: string,
+  role: AiMessageRole,
+  content: string,
+  metadata?: {
+    model?: string;
+    toolNames?: string[];
+    sourcePaths?: string[];
+  },
+) {
   return db.aiMessage.create({
-    data: { conversationId, role, content },
+    data: { conversationId, role, content, ...metadata },
   });
 }
 
