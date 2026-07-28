@@ -8,6 +8,9 @@ const dbMock = vi.hoisted(() => ({
     findFirst: vi.fn(),
     updateMany: vi.fn(),
   },
+  aiNotification: {
+    updateMany: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/db", () => ({ db: dbMock }));
@@ -17,6 +20,7 @@ import {
   findOwnedConversation,
   findOwnedProposal,
 } from "@/modules/assistant/assistant.repository";
+import { markRead as markNotificationRead } from "@/modules/assistant/assistant-notifications.repository";
 
 describe("assistant repository ownership boundaries", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -49,6 +53,17 @@ describe("assistant repository ownership boundaries", () => {
         expiresAt: { gt: expect.any(Date) },
       },
       data: { status: "PROCESSING" },
+    });
+  });
+
+  it("scopes notification mutations to the authenticated user", async () => {
+    dbMock.aiNotification.updateMany.mockResolvedValue({ count: 0 });
+
+    await markNotificationRead("user-42", "notification-1");
+
+    expect(dbMock.aiNotification.updateMany).toHaveBeenCalledWith({
+      where: { id: "notification-1", userId: "user-42", readAt: null },
+      data: { readAt: expect.any(Date) },
     });
   });
 });

@@ -189,6 +189,7 @@ model User {
   bookingStatusEvents BookingStatusEvent[] @relation("BookingStatusEventBy")
   aiConversations     AiConversation[]
   aiActionProposals   AiActionProposal[]
+  aiNotifications     AiNotification[]
 }
 
 // =============================================================
@@ -783,6 +784,13 @@ enum AiProposalStatus {
   EXPIRED
 }
 
+enum AiNotificationKind {
+  DAILY_BRIEF
+  TASK_DUE
+  QUOTATION_EXPIRING
+  ACTION_COMPLETED
+}
+
 /// Transactional email outbox. Services enqueue a row in the SAME transaction
 /// as the triggering mutation; an idempotent drain cron sends via Resend and
 /// marks SENT/FAILED. Emails link to gated download pages — never embed signed
@@ -858,4 +866,24 @@ model AiActionProposal {
 
   @@index([userId, status, expiresAt])
   @@index([conversationId, createdAt])
+}
+
+/// Permission-scoped in-app alerts surfaced by Ask Safar. Payloads are kept
+/// deliberately small and link back to the authoritative CRM record.
+model AiNotification {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @db.Uuid
+  kind      AiNotificationKind
+  title     String
+  body      String
+  href      String
+  dedupeKey String
+  readAt    DateTime?          @db.Timestamptz(6)
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, createdAt(sort: Desc)])
 }

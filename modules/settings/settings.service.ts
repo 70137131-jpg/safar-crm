@@ -82,9 +82,12 @@ function toDTO(row: SettingsRow): SettingsDTO {
 export interface NotificationConfig {
   notifyPassportExpiry: boolean;
   notifyPaymentDue: boolean;
+  notifyDailySummary: boolean;
+  notifyQuotationExpiry: boolean;
   notifyOverdueTasks: boolean;
   passportExpiryWarnDays: number;
   paymentDueWarnDays: number;
+  quotationExpiryWarnDays: number;
   overdueTaskWarnDays: number;
 }
 
@@ -97,9 +100,12 @@ export async function getNotificationConfig(): Promise<NotificationConfig> {
   return {
     notifyPassportExpiry: row?.notifyPassportExpiry ?? DEFAULTS.notifyPassportExpiry,
     notifyPaymentDue: row?.notifyPaymentDue ?? DEFAULTS.notifyPaymentDue,
+    notifyDailySummary: row?.notifyDailySummary ?? DEFAULTS.notifyDailySummary,
+    notifyQuotationExpiry: row?.notifyQuotationExpiry ?? DEFAULTS.notifyQuotationExpiry,
     notifyOverdueTasks: row?.notifyOverdueTasks ?? DEFAULTS.notifyOverdueTasks,
     passportExpiryWarnDays: row?.passportExpiryWarnDays ?? DEFAULTS.passportExpiryWarnDays,
     paymentDueWarnDays: row?.paymentDueWarnDays ?? DEFAULTS.paymentDueWarnDays,
+    quotationExpiryWarnDays: row?.quotationExpiryWarnDays ?? DEFAULTS.quotationExpiryWarnDays,
     overdueTaskWarnDays: row?.overdueTaskWarnDays ?? DEFAULTS.overdueTaskWarnDays,
   };
 }

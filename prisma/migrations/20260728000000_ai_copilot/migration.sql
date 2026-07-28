@@ -1,6 +1,7 @@
 -- Ask Safar: staff-owned conversation history and confirmation-gated actions.
 CREATE TYPE "AiMessageRole" AS ENUM ('USER', 'ASSISTANT');
 CREATE TYPE "AiProposalStatus" AS ENUM ('PENDING', 'PROCESSING', 'EXECUTED', 'REJECTED', 'EXPIRED');
+CREATE TYPE "AiNotificationKind" AS ENUM ('DAILY_BRIEF', 'TASK_DUE', 'QUOTATION_EXPIRING', 'ACTION_COMPLETED');
 
 CREATE TABLE "AiConversation" (
     "id" UUID NOT NULL,
@@ -38,6 +39,20 @@ CREATE TABLE "AiActionProposal" (
     CONSTRAINT "AiActionProposal_pkey" PRIMARY KEY ("id")
 );
 
+CREATE TABLE "AiNotification" (
+    "id" UUID NOT NULL,
+    "userId" UUID NOT NULL,
+    "kind" "AiNotificationKind" NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "href" TEXT NOT NULL,
+    "dedupeKey" TEXT NOT NULL,
+    "readAt" TIMESTAMPTZ(6),
+    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ(6) NOT NULL,
+    CONSTRAINT "AiNotification_pkey" PRIMARY KEY ("id")
+);
+
 CREATE INDEX "AiConversation_userId_updatedAt_idx"
   ON "AiConversation"("userId", "updatedAt" DESC);
 CREATE INDEX "AiMessage_conversationId_createdAt_idx"
@@ -46,6 +61,10 @@ CREATE INDEX "AiActionProposal_userId_status_expiresAt_idx"
   ON "AiActionProposal"("userId", "status", "expiresAt");
 CREATE INDEX "AiActionProposal_conversationId_createdAt_idx"
   ON "AiActionProposal"("conversationId", "createdAt");
+CREATE UNIQUE INDEX "AiNotification_userId_dedupeKey_key"
+  ON "AiNotification"("userId", "dedupeKey");
+CREATE INDEX "AiNotification_userId_readAt_createdAt_idx"
+  ON "AiNotification"("userId", "readAt", "createdAt" DESC);
 
 ALTER TABLE "AiConversation"
   ADD CONSTRAINT "AiConversation_userId_fkey"
@@ -59,3 +78,6 @@ ALTER TABLE "AiActionProposal"
 ALTER TABLE "AiActionProposal"
   ADD CONSTRAINT "AiActionProposal_userId_fkey"
   FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "AiNotification"
+  ADD CONSTRAINT "AiNotification_userId_fkey"
+  FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

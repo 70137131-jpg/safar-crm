@@ -2,6 +2,7 @@ import type { UserContext } from "@/lib/permissions/types";
 import { requirePermission } from "@/lib/permissions";
 import { env } from "@/lib/env";
 import { logAudit } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { runGeminiAgent } from "@/lib/ai/gemini";
 import * as tasksService from "@/modules/tasks/tasks.service";
@@ -22,6 +23,7 @@ import {
   taskProposalPayloadSchema,
 } from "./assistant.schemas";
 import { assistantToolDeclarations, executeAssistantTool } from "./assistant.tools";
+import { notifyActionCompleted } from "./assistant-notifications.service";
 import type { AssistantConversationDTO, AssistantRunDTO } from "./assistant.types";
 
 const SYSTEM_INSTRUCTION = `You are Ask Safar, an internal operations copilot for a Pakistani travel agency.
@@ -207,6 +209,12 @@ export async function confirmProposal(
     after: { status: "EXECUTED", ...result },
     ip: user.ip,
     userAgent: user.userAgent,
+  });
+  await notifyActionCompleted(user, {
+    proposalId: proposal.id,
+    ...result,
+  }).catch((error: unknown) => {
+    logger.error({ error, proposalId: proposal.id }, "assistant.action_notification_failed");
   });
   return {
     proposalId: proposal.id,
