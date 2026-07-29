@@ -31,6 +31,11 @@ test("lead → convert → booking → payment", async ({ page }) => {
   await expect(async () => {
     await page.getByLabel("Contact Name").fill(name);
     await page.getByLabel("Phone").fill(phone);
+    await page.getByLabel("Email").fill(`lead-${phone.slice(-9)}@test.com`);
+    await page.getByLabel("Destination").fill("Jeddah");
+    await page.getByLabel("Trip Purpose").selectOption("UMRAH");
+    await page.getByLabel("Route").selectOption("ROUND_TRIP");
+    await page.getByLabel("Pax").fill("2");
     await page.getByLabel("Budget (PKR)").fill("500000");
     await page.getByRole("button", { name: "Create Lead" }).click();
     await expect(page).toHaveURL(/\/leads\/[0-9a-f-]{36}/, { timeout: 20_000 });

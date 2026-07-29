@@ -32,7 +32,7 @@ test.describe("Customers Module", () => {
 
   test("create a customer", async ({ page }) => {
     await createCustomer(page, "E2E Test Customer");
-    await expect(page.locator("text=E2E Test Customer")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "E2E Test Customer" })).toBeVisible();
   });
 
   test("edit a customer", async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe("Customers Module", () => {
     await page.getByLabel("Name").fill("Edited Customer");
     await page.getByRole("button", { name: "Save Changes" }).click();
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
-    await expect(page.locator("text=Edited Customer")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Edited Customer" })).toBeVisible();
   });
 
   test("delete and restore a customer", async ({ page }) => {
@@ -52,25 +52,23 @@ test.describe("Customers Module", () => {
 
     // Go to list
     await page.goto("/customers");
-    await page.waitForSelector("text=" + uniqueName, { timeout: 5000 });
+    const customerRow = page.getByRole("row", { name: new RegExp(uniqueName) });
+    await expect(customerRow).toBeVisible({ timeout: 10_000 });
 
     // Open actions and delete
-    const row = page.locator(`text=${uniqueName}`).locator("..").locator("..");
-    await row.locator('[aria-label="Actions"]').click();
-    await row.locator("text=Delete").click();
-    await page.locator("text=Delete").last().click(); // confirm dialog
-    await page.waitForTimeout(1000);
+    await customerRow.getByRole("button", { name: "Actions" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await page.getByRole("button", { name: "Delete" }).click(); // confirm dialog
 
     // Go to trash and restore
     await page.goto("/customers/trash");
-    await expect(page.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 5000 });
-    await page
-      .locator(`text=${uniqueName}`)
-      .locator("..")
-      .locator("..")
-      .locator("text=Restore")
+    const trashedCustomer = page.getByText(uniqueName, { exact: true });
+    await expect(trashedCustomer).toBeVisible({ timeout: 10_000 });
+    await trashedCustomer
+      .locator("xpath=../../..")
+      .getByRole("button", { name: "Restore" })
       .click();
-    await page.locator('button:has-text("Restore")').last().click(); // confirm
+    await page.getByRole("button", { name: "Restore" }).click(); // confirm
   });
 
   test("customer list is responsive on mobile viewport", async ({ page }) => {

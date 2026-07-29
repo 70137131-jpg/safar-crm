@@ -16,8 +16,12 @@ test("AGENT cannot view another agent's customer via URL probing", async ({ page
   // is NOT owned by the demo AGENT — exactly what we want to probe.
   await login(page);
   await page.goto("/customers/new");
+  const unique = Date.now().toString().slice(-9);
   await expect(async () => {
     await page.getByLabel("Name").fill(name);
+    await page.getByLabel("Email").fill(`authz-${unique}@test.com`);
+    await page.getByLabel("Phone").fill(`03${unique}`);
+    await page.getByLabel("Nationality").fill("PK");
     await page.getByRole("button", { name: "Create Customer" }).click();
     // Web-first URL assertion (App Router does a client-side navigation here).
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}/, { timeout: NAV });
