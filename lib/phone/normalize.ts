@@ -1,4 +1,6 @@
-import { ValidationError } from "@/lib/errors";
+// Keep this client-safe utility independent of the server-action error barrel,
+// which imports logging and environment validation intended for server code.
+import { ValidationError } from "@/lib/errors/app-error";
 
 /**
  * Normalise a Pakistani phone number to E.164.
