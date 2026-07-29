@@ -10,12 +10,19 @@ import { login } from "./helpers";
 
 async function createCustomer(page: Page, name: string) {
   await page.goto("/customers/new");
-  await page.getByLabel("Name").fill(name);
-  await page.getByLabel("Email").fill(`e2e-${Date.now()}@test.com`);
-  await page.getByLabel("Phone").fill("03001234567");
-  await page.getByLabel("Nationality").fill("PK");
-  await page.getByRole("button", { name: "Create Customer" }).click();
-  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
+  const unique = Date.now().toString().slice(-9);
+  await expect(async () => {
+    await page.getByLabel("Name").fill(name);
+    await page.getByLabel("Email").fill(`e2e-${unique}@test.com`);
+    // The demo seed owns +923001234567, so each test needs a distinct valid
+    // Pakistani mobile number.
+    await page.getByLabel("Phone").fill(`03${unique}`);
+    await page.getByLabel("Nationality").fill("PK");
+    await page.getByRole("button", { name: "Create Customer" }).click();
+    await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, {
+      timeout: 20_000,
+    });
+  }).toPass({ timeout: 90_000 });
 }
 
 test.describe("Customers Module", () => {

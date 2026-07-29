@@ -22,6 +22,7 @@ test("lead → convert → booking → payment", async ({ page }) => {
   test.setTimeout(240_000);
   const NAV = 45_000;
   const name = `E2E Flow ${Date.now()}`;
+  const phone = `03${Date.now().toString().slice(-9)}`;
 
   await login(page); // seeded ADMIN
 
@@ -29,7 +30,7 @@ test("lead → convert → booking → payment", async ({ page }) => {
   await page.goto("/leads/new");
   await expect(async () => {
     await page.getByLabel("Contact Name").fill(name);
-    await page.getByLabel("Phone").fill("03001234567");
+    await page.getByLabel("Phone").fill(phone);
     await page.getByLabel("Budget (PKR)").fill("500000");
     await page.getByRole("button", { name: "Create Lead" }).click();
     await expect(page).toHaveURL(/\/leads\/[0-9a-f-]{36}/, { timeout: 20_000 });
