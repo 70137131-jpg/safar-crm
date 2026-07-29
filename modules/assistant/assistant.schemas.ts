@@ -19,6 +19,19 @@ export const searchLeadsToolSchema = z.object({
   query: z.string().trim().min(1).max(200),
 });
 
+export const reportQuestionToolSchema = z.object({
+  question: z.string().trim().min(3).max(500),
+});
+
+export const draftFollowUpToolSchema = z.object({
+  targetType: z.enum(["lead", "customer"]),
+  targetId: z.string().uuid(),
+  channel: z.enum(["WHATSAPP", "EMAIL"]),
+  language: z.enum(["ENGLISH", "URDU", "ROMAN_URDU"]).default("ENGLISH"),
+  tone: z.string().trim().min(1).max(40).default("friendly"),
+  purpose: z.string().trim().max(300).optional(),
+});
+
 export const idToolSchema = z.object({
   id: z.string().uuid(),
 });

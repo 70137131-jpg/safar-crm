@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   FileText,
   Image as ImageIcon,
@@ -10,6 +11,7 @@ import {
   Eye,
   Loader2,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -25,7 +27,16 @@ import {
 
 // ─── Client-side constants (mirror ARCHITECTURE.md §8 — r2.ts is server-only) ─
 
-const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+  "audio/ogg",
+];
 const MAX_BYTES = 25 * 1024 * 1024;
 
 const DOC_TYPES = [
@@ -49,7 +60,14 @@ const TYPE_TONE: Record<string, StatusTone> = {
   INVOICE: "success",
   OTHER: "neutral",
 };
-const CATEGORY_ORDER: DocTypeValue[] = ["PASSPORT", "VISA", "TICKET", "VOUCHER", "INVOICE", "OTHER"];
+const CATEGORY_ORDER: DocTypeValue[] = [
+  "PASSPORT",
+  "VISA",
+  "TICKET",
+  "VOUCHER",
+  "INVOICE",
+  "OTHER",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -75,7 +93,7 @@ function daysUntil(date: Date | string | null): number | null {
 
 function FileIcon({ contentType }: { contentType: string }) {
   const Icon = contentType.startsWith("image/") ? ImageIcon : FileText;
-  return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />;
+  return <Icon className="text-muted-foreground h-4 w-4 shrink-0" />;
 }
 
 function ExpiryBadge({ expiryDate }: { expiryDate: Date | string | null }) {
@@ -107,7 +125,13 @@ interface Props {
   categorized?: boolean;
 }
 
-export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, categorized }: Props) {
+export function DocumentsPanel({
+  customerId,
+  bookingId,
+  canUpload,
+  canDelete,
+  categorized,
+}: Props) {
   const [docs, setDocs] = useState<DocumentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -142,7 +166,7 @@ export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, ca
       setUploadError(null);
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setUploadError("Unsupported file type. Allowed: PDF, JPEG, PNG.");
+        setUploadError("Unsupported file type. Allowed: PDF, JPEG, PNG, MP3, M4A, WAV, WebM, OGG.");
         return;
       }
       if (file.size > MAX_BYTES) {
@@ -232,12 +256,12 @@ export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, ca
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             <label className="flex-1 text-sm">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Type</span>
+              <span className="text-muted-foreground mb-1 block text-xs font-medium">Type</span>
               <select
                 value={docType}
                 onChange={(e) => setDocType(e.target.value as DocTypeValue)}
                 disabled={uploading}
-                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                className="bg-background h-9 w-full rounded-md border px-2 text-sm"
               >
                 {DOC_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -247,7 +271,7 @@ export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, ca
               </select>
             </label>
             <label className="flex-1 text-sm">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">
+              <span className="text-muted-foreground mb-1 block text-xs font-medium">
                 Expiry date (optional)
               </span>
               <input
@@ -255,26 +279,30 @@ export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, ca
                 value={expiry}
                 onChange={(e) => setExpiry(e.target.value)}
                 disabled={uploading}
-                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                className="bg-background h-9 w-full rounded-md border px-2 text-sm"
               />
             </label>
           </div>
 
           <div className="mt-4 flex flex-col items-center justify-center gap-2 py-4 text-center">
-            <UploadCloud className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Drag &amp; drop a file here, or
-            </p>
+            <UploadCloud className="text-muted-foreground h-8 w-8" />
+            <p className="text-muted-foreground text-sm">Drag &amp; drop a file here, or</p>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              className="bg-primary text-primary-foreground inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium disabled:opacity-50"
             >
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UploadCloud className="h-4 w-4" />
+              )}
               {uploading ? "Uploading…" : "Browse"}
             </button>
-            <p className="text-xs text-muted-foreground">PDF, JPEG or PNG · max 25 MB</p>
+            <p className="text-muted-foreground text-xs">
+              PDF, image, or supported audio file · max 25 MB
+            </p>
             <input
               ref={fileInputRef}
               type="file"
@@ -301,14 +329,16 @@ export function DocumentsPanel({ customerId, bookingId, canUpload, canDelete, ca
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-10 text-muted-foreground">
+        <div className="text-muted-foreground flex items-center justify-center py-10">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : docs.length === 0 ? (
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title="No documents yet"
-          description={canUpload ? "Upload a file to get started." : "No documents have been uploaded."}
+          description={
+            canUpload ? "Upload a file to get started." : "No documents have been uploaded."
+          }
         />
       ) : categorized ? (
         <CategorizedList docs={docs} canDelete={canDelete} onDelete={handleDelete} />
@@ -360,7 +390,7 @@ function DocumentList({
       {/* Mobile: cards */}
       <ul className="space-y-3 sm:hidden">
         {docs.map((doc) => (
-          <li key={doc.id} className="rounded-lg border bg-card p-4">
+          <li key={doc.id} className="bg-card rounded-lg border p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <FileIcon contentType={doc.contentType} />
@@ -370,7 +400,7 @@ function DocumentList({
                 {TYPE_LABEL[doc.type] ?? doc.type}
               </StatusBadge>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               <span>{formatBytes(doc.sizeBytes)}</span>
               <ExpiryBadge expiryDate={doc.expiryDate} />
               <span>{doc.uploadedBy?.name ?? "—"}</span>
@@ -386,7 +416,7 @@ function DocumentList({
       {/* Desktop: table */}
       <div className="hidden overflow-x-auto rounded-lg border sm:block">
         <table className="w-full text-sm">
-          <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
+          <thead className="bg-muted/50 text-muted-foreground border-b text-left text-xs">
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Type</th>
@@ -411,12 +441,12 @@ function DocumentList({
                     {TYPE_LABEL[doc.type] ?? doc.type}
                   </StatusBadge>
                 </td>
-                <td className="px-4 py-2 text-muted-foreground">{formatBytes(doc.sizeBytes)}</td>
+                <td className="text-muted-foreground px-4 py-2">{formatBytes(doc.sizeBytes)}</td>
                 <td className="px-4 py-2">
                   <ExpiryBadge expiryDate={doc.expiryDate} />
                 </td>
-                <td className="px-4 py-2 text-muted-foreground">{doc.uploadedBy?.name ?? "—"}</td>
-                <td className="px-4 py-2 text-muted-foreground">{formatDate(doc.createdAt)}</td>
+                <td className="text-muted-foreground px-4 py-2">{doc.uploadedBy?.name ?? "—"}</td>
+                <td className="text-muted-foreground px-4 py-2">{formatDate(doc.createdAt)}</td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-3">
                     <RowActions doc={doc} canDelete={canDelete} onDelete={onDelete} />
@@ -443,12 +473,20 @@ function RowActions({
   const previewable = doc.contentType === "application/pdf" || doc.contentType.startsWith("image/");
   return (
     <>
+      <Link
+        href={{ pathname: "/ai-insights", query: { documentId: doc.id } }}
+        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline dark:text-violet-400"
+        title={doc.contentType.startsWith("audio/") ? "Analyze audio with AI" : "Extract with AI"}
+      >
+        <Sparkles className="h-4 w-4" />
+        <span className="sr-only sm:not-sr-only">AI</span>
+      </Link>
       {previewable && (
         <a
           href={`/api/documents/${doc.id}/download?disposition=inline`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
           title="Preview"
         >
           <Eye className="h-4 w-4" />
@@ -457,7 +495,7 @@ function RowActions({
       )}
       <a
         href={`/api/documents/${doc.id}/download`}
-        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+        className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
         title="Download"
       >
         <Download className="h-4 w-4" />

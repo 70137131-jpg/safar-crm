@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   countUnread: vi.fn(),
   markRead: vi.fn(),
   markAllRead: vi.fn(),
+  getNotificationRiskSnapshot: vi.fn(),
 }));
 
 vi.mock("@/modules/tasks/tasks.service", () => ({ listTasks: mocks.listTasks }));
@@ -20,6 +21,19 @@ vi.mock("@/modules/quotations/quotations.service", () => ({
 }));
 vi.mock("@/modules/settings/settings.service", () => ({
   getNotificationConfig: mocks.getNotificationConfig,
+}));
+vi.mock("@/modules/ai-enhancements/ai-enhancements.service", () => ({
+  getNotificationRiskSnapshot: mocks.getNotificationRiskSnapshot,
+}));
+vi.mock("@/lib/env", () => ({
+  env: {
+    GEMINI_API_KEY: undefined,
+    GEMINI_MODEL: "test-model",
+    GEMINI_EMBEDDING_MODEL: "test-embedding",
+  },
+}));
+vi.mock("@/lib/logger", () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 vi.mock("@/modules/assistant/assistant-notifications.repository", () => ({
   upsertNotification: mocks.upsertNotification,
@@ -96,6 +110,7 @@ describe("Ask Safar notifications", () => {
       ],
     });
     mocks.upsertNotification.mockResolvedValue({});
+    mocks.getNotificationRiskSnapshot.mockResolvedValue({ documents: [], payments: [] });
     mocks.createNotifications.mockResolvedValue(0);
     mocks.markStaleOperationalRead.mockResolvedValue({ count: 0 });
   });

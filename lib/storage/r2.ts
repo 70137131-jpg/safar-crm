@@ -19,7 +19,7 @@ import { IntegrationError, ValidationError } from "@/lib/errors";
  *   - One PRIVATE bucket per environment. No public read.
  *   - Raw bucket URLs are NEVER exposed. Callers receive object keys; the only
  *     way bytes leave the system is a short-lived signed URL minted here.
- *   - Allowed content types: application/pdf, image/jpeg, image/png. Max 25 MB.
+ *   - Allowed content types: PDF, JPEG, PNG, and approved audio formats. Max 25 MB.
  *   - Signed URLs expire in 5 minutes.
  *
  * This module is `server-only` — it must never be bundled into client code,
@@ -32,6 +32,11 @@ export const ALLOWED_CONTENT_TYPES = [
   "application/pdf",
   "image/jpeg",
   "image/png",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+  "audio/ogg",
 ] as const;
 export type AllowedContentType = (typeof ALLOWED_CONTENT_TYPES)[number];
 
@@ -50,7 +55,7 @@ export function isAllowedContentType(value: string): value is AllowedContentType
 export function assertUploadConstraints(contentType: string, sizeBytes: number): void {
   if (!isAllowedContentType(contentType)) {
     throw new ValidationError(
-      `Unsupported file type "${contentType}". Allowed: PDF, JPEG, PNG.`,
+      `Unsupported file type "${contentType}". Allowed: PDF, JPEG, PNG, MP3, M4A, WAV, WebM, OGG.`,
       "contentType",
     );
   }
@@ -115,9 +120,7 @@ function getClient(): { client: S3Client; bucket: string } {
 
 function isNotFound(err: unknown): boolean {
   const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
-  return (
-    e?.$metadata?.httpStatusCode === 404 || e?.name === "NotFound" || e?.name === "NoSuchKey"
-  );
+  return e?.$metadata?.httpStatusCode === 404 || e?.name === "NotFound" || e?.name === "NoSuchKey";
 }
 
 // ─── Operations ──────────────────────────────────────────────────────────────
@@ -145,6 +148,23 @@ export async function headObject(key: string): Promise<HeadResult | null> {
     if (isNotFound(err)) return null;
     logger.error({ err, key }, "r2.head_failed");
     throw new IntegrationError("Failed to inspect the uploaded file.", err);
+  }
+}
+
+/**
+ * Reads a private object for an authorized server-side processor such as
+ * document extraction or voice-note analysis. Callers must authorize the
+ * linked CRM document before passing its key here.
+ */
+export async function getFileBytes(key: string): Promise<Uint8Array> {
+  const { client, bucket } = getClient();
+  try {
+    const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    if (!response.Body) throw new Error("Object body was empty");
+    return await response.Body.transformToByteArray();
+  } catch (err) {
+    logger.error({ err, key }, "r2.read_for_ai_failed");
+    throw new IntegrationError("Failed to read the document for AI analysis.", err);
   }
 }
 
@@ -214,9 +234,7 @@ export async function createSignedUploadUrl(params: {
         Bucket: bucket,
         Key: params.key,
         ContentType: params.contentType,
-        ...(params.checksumSha256Base64
-          ? { ChecksumSHA256: params.checksumSha256Base64 }
-          : {}),
+        ...(params.checksumSha256Base64 ? { ChecksumSHA256: params.checksumSha256Base64 } : {}),
       }),
       { expiresIn: SIGNED_URL_TTL_SECONDS },
     );

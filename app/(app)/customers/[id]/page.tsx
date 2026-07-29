@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { MessageSquareText } from "lucide-react";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/session";
 import { can } from "@/lib/permissions";
 import { getCustomerAction } from "@/modules/customers/customers.actions";
@@ -47,11 +50,16 @@ export default async function CustomerDetailPage({ params }: Props) {
   return (
     <PageWrapper>
       <Breadcrumbs
-        items={[
-          { label: "Customers", href: "/customers" },
-          { label: result.data.name },
-        ]}
+        items={[{ label: "Customers", href: "/customers" }, { label: result.data.name }]}
       />
+      <div className="mb-4 flex justify-end">
+        <Button asChild variant="outline" size="sm">
+          <Link href={{ pathname: "/ai-insights", query: { customerId: result.data.id } }}>
+            <MessageSquareText />
+            Draft AI follow-up
+          </Link>
+        </Button>
+      </div>
       <CustomerDetailClient
         customer={result.data}
         docCaps={docCaps}

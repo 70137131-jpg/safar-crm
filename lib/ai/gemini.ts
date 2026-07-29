@@ -2,6 +2,7 @@ import "server-only";
 import { env } from "@/lib/env";
 import { AppError, IntegrationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import type { ZodType } from "zod";
 
 export interface GeminiToolDeclaration {
   type: "function";
@@ -61,7 +62,142 @@ export interface GeminiRunResult {
 }
 
 const INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const GENERATIVE_LANGUAGE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MAX_TOOL_ROUNDS = 6;
+
+interface GenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+  error?: { message?: string };
+}
+
+function modelPath(model: string): string {
+  return model.startsWith("models/") ? model : `models/${model}`;
+}
+
+function jsonFromModelText(text: string): unknown {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  try {
+    return JSON.parse(cleaned);
+  } catch (error) {
+    throw new IntegrationError("The AI service returned an invalid structured response.", error);
+  }
+}
+
+/**
+ * Structured Gemini generation for bounded CRM feature workflows. Unlike the
+ * agent loop, this accepts no tools and validates every model field with Zod.
+ */
+export async function generateGeminiJson<T>(input: {
+  prompt: string;
+  schema: ZodType<T>;
+  inlineData?: { contentType: string; bytes: Uint8Array };
+}): Promise<T> {
+  if (!env.GEMINI_API_KEY) {
+    throw new Error("Gemini is not configured. Add GEMINI_API_KEY to the server environment.");
+  }
+
+  const parts: Array<Record<string, unknown>> = [{ text: input.prompt }];
+  if (input.inlineData) {
+    parts.push({
+      inline_data: {
+        mime_type: input.inlineData.contentType,
+        data: Buffer.from(input.inlineData.bytes).toString("base64"),
+      },
+    });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${GENERATIVE_LANGUAGE_URL}/${modelPath(env.GEMINI_MODEL)}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": env.GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0.2,
+            maxOutputTokens: 3000,
+          },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+  } catch (error) {
+    logger.error({ error, provider: "gemini" }, "ai_feature.provider_unreachable");
+    throw new IntegrationError("The AI service is unavailable. Please try again.", error);
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as GenerateContentResponse;
+  if (!response.ok) {
+    logger.error(
+      { status: response.status, providerMessage: payload.error?.message },
+      "ai_feature.provider_error",
+    );
+    throw new IntegrationError("The AI service is unavailable. Please try again.");
+  }
+  const text =
+    payload.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? "")
+      .join("")
+      .trim() ?? "";
+  if (!text) throw new IntegrationError("The AI service returned an empty response.");
+  return input.schema.parse(jsonFromModelText(text));
+}
+
+/** Creates a normalized 768-dimension embedding for pgvector cosine search. */
+export async function embedText(text: string): Promise<number[]> {
+  if (!env.GEMINI_API_KEY) {
+    throw new Error("Gemini is not configured. Add GEMINI_API_KEY to the server environment.");
+  }
+  const model = modelPath(env.GEMINI_EMBEDDING_MODEL);
+  let response: Response;
+  try {
+    response = await fetch(`${GENERATIVE_LANGUAGE_URL}/${model}:embedContent`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        model,
+        content: { parts: [{ text: text.slice(0, 10_000) }] },
+        outputDimensionality: 768,
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    logger.error({ error, provider: "gemini" }, "ai_embedding.provider_unreachable");
+    throw new IntegrationError("Semantic search is unavailable. Please try again.", error);
+  }
+  const payload = (await response.json().catch(() => ({}))) as {
+    embedding?: { values?: number[] };
+    error?: { message?: string };
+  };
+  if (!response.ok || payload.embedding?.values?.length !== 768) {
+    logger.error(
+      {
+        status: response.status,
+        dimensions: payload.embedding?.values?.length,
+        providerMessage: payload.error?.message,
+      },
+      "ai_embedding.provider_error",
+    );
+    throw new IntegrationError("Semantic search is unavailable. Please try again.");
+  }
+  return payload.embedding.values;
+}
 
 function textFromResponse(response: InteractionResponse): string {
   if (response.output_text?.trim()) return response.output_text.trim();

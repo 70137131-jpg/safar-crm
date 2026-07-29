@@ -8,9 +8,11 @@ import * as interactionsService from "@/modules/interactions/interactions.servic
 import * as tasksService from "@/modules/tasks/tasks.service";
 import * as paymentsService from "@/modules/payments/payments.service";
 import * as quotationsService from "@/modules/quotations/quotations.service";
+import { runWorkbenchAction } from "@/modules/ai-enhancements/ai-enhancements.service";
 import * as repo from "./assistant.repository";
 import {
   bookingBalanceToolSchema,
+  draftFollowUpToolSchema,
   emptyToolSchema,
   expiringQuotationsToolSchema,
   idToolSchema,
@@ -18,6 +20,7 @@ import {
   proposeLeadStatusToolSchema,
   proposeQuotationToolSchema,
   proposeTaskToolSchema,
+  reportQuestionToolSchema,
   searchLeadsToolSchema,
 } from "./assistant.schemas";
 
@@ -97,12 +100,86 @@ const READ_TOOLS: GeminiToolDeclaration[] = [
       },
     },
   },
+  {
+    type: "function",
+    name: "get_lead_score",
+    description:
+      "Calculate and store an explainable conversion score and next-best action for an authorized lead.",
+    parameters: {
+      type: "object",
+      properties: { id: { type: "string", description: "Lead UUID." } },
+      required: ["id"],
+    },
+  },
+  {
+    type: "function",
+    name: "recommend_packages",
+    description:
+      "Rank verified active CRM packages for an authorized lead using destination and budget fit.",
+    parameters: {
+      type: "object",
+      properties: { id: { type: "string", description: "Lead UUID." } },
+      required: ["id"],
+    },
+  },
+  {
+    type: "function",
+    name: "review_quotation_quality",
+    description: "Run deterministic consistency and quality checks on an authorized quotation.",
+    parameters: {
+      type: "object",
+      properties: { id: { type: "string", description: "Quotation UUID." } },
+      required: ["id"],
+    },
+  },
+  {
+    type: "function",
+    name: "semantic_crm_search",
+    description: "Search the signed-in user's permission-isolated semantic CRM index by meaning.",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string" } },
+      required: ["query"],
+    },
+  },
+  {
+    type: "function",
+    name: "run_typed_report",
+    description:
+      "Map a natural-language question to an approved permission-scoped CRM report. Never generates SQL.",
+    parameters: {
+      type: "object",
+      properties: { question: { type: "string" } },
+      required: ["question"],
+    },
+  },
 ];
 
 const PROPOSAL_TOOLS: Array<{
   permission: "tasks:create" | "interactions:create" | "leads:update" | "quotations:create";
   declaration: GeminiToolDeclaration;
 }> = [
+  {
+    permission: "interactions:create",
+    declaration: {
+      type: "function",
+      name: "draft_follow_up",
+      description:
+        "Create an editable WhatsApp or email follow-up draft. This never sends the message.",
+      parameters: {
+        type: "object",
+        properties: {
+          targetType: { type: "string", enum: ["lead", "customer"] },
+          targetId: { type: "string" },
+          channel: { type: "string", enum: ["WHATSAPP", "EMAIL"] },
+          language: { type: "string", enum: ["ENGLISH", "URDU", "ROMAN_URDU"] },
+          tone: { type: "string" },
+          purpose: { type: "string" },
+        },
+        required: ["targetType", "targetId", "channel", "language", "tone"],
+      },
+    },
+  },
   {
     permission: "tasks:create",
     declaration: {
@@ -518,6 +595,49 @@ export async function executeAssistantTool(
         sources: rows.map((quote) =>
           source(`Quotation ${quote.quoteNumber ?? "draft"}`, `/quotations/${quote.id}`),
         ),
+      };
+    }
+    case "get_lead_score": {
+      const { id } = idToolSchema.parse(args);
+      const data = await runWorkbenchAction(user, { action: "lead_score", leadId: id });
+      return { data, sources: [source("Lead score", `/leads/${id}`)] };
+    }
+    case "recommend_packages": {
+      const { id } = idToolSchema.parse(args);
+      const data = await runWorkbenchAction(user, { action: "recommend_packages", leadId: id });
+      return { data, sources: [source("Lead", `/leads/${id}`)] };
+    }
+    case "review_quotation_quality": {
+      const { id } = idToolSchema.parse(args);
+      const data = await runWorkbenchAction(user, { action: "quote_review", quotationId: id });
+      return { data, sources: [source("Quotation", `/quotations/${id}`)] };
+    }
+    case "semantic_crm_search": {
+      const { query } = searchLeadsToolSchema.parse(args);
+      const data = await runWorkbenchAction(user, { action: "semantic_search", query });
+      const items = (data as { items?: Array<{ title: string; href: string }> }).items ?? [];
+      return {
+        data,
+        sources: items.map((item) => source(item.title, item.href)),
+      };
+    }
+    case "run_typed_report": {
+      const { question } = reportQuestionToolSchema.parse(args);
+      const data = await runWorkbenchAction(user, { action: "report", question });
+      return { data, sources: [source("Reports", "/reports")] };
+    }
+    case "draft_follow_up": {
+      requirePermission(user, "interactions:create");
+      const input = draftFollowUpToolSchema.parse(args);
+      const data = await runWorkbenchAction(user, { action: "follow_up", ...input });
+      const href =
+        input.targetType === "lead" ? `/leads/${input.targetId}` : `/customers/${input.targetId}`;
+      return {
+        data: {
+          ...data,
+          warning: "This is an editable draft only. It has not been sent.",
+        },
+        sources: [source("CRM record", href)],
       };
     }
     case "propose_create_task": {

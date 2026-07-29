@@ -29,6 +29,19 @@ vi.mock("@/modules/assistant/assistant.repository", () => ({
 vi.mock("@/lib/audit", () => ({
   logAudit: vi.fn(),
 }));
+vi.mock("@/modules/ai-enhancements/ai-enhancements.service", () => ({
+  runWorkbenchAction: vi.fn(),
+}));
+vi.mock("@/lib/env", () => ({
+  env: {
+    GEMINI_API_KEY: undefined,
+    GEMINI_MODEL: "test-model",
+    GEMINI_EMBEDDING_MODEL: "test-embedding",
+  },
+}));
+vi.mock("@/lib/logger", () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
 
 import * as customersService from "@/modules/customers/customers.service";
 import * as interactionsService from "@/modules/interactions/interactions.service";

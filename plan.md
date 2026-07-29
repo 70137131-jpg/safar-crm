@@ -1,5 +1,9 @@
 # Safar CRM AI Enhancement Plan
 
+> Implementation status: all roadmap capabilities have an initial implementation
+> on `feat/ai-crm-enhancements`. See [AI_FEATURES.md](AI_FEATURES.md) for product
+> surfaces, architecture, configuration, and validation.
+
 ## Goal
 
 Extend Safar CRM's existing native copilot with focused, explainable AI features that improve sales productivity, customer follow-up, data quality, and management visibility.
@@ -8,16 +12,16 @@ The copilot should remain an internal CRM capability rather than becoming a sepa
 
 ## Priorities
 
-| Priority | Feature | Expected value | Effort |
-| --- | --- | --- | --- |
-| 1 | AI follow-up composer | Faster and more consistent customer communication | Low |
-| 2 | Explainable lead scoring and next-best action | Helps staff focus on likely conversions | Medium |
-| 3 | Document extraction | Reduces passport, visa, invoice, and itinerary data entry | Medium |
-| 4 | Semantic CRM search | Finds relevant information without exact keywords | Medium |
-| 5 | Manager daily briefing | Surfaces missed opportunities and operational risks | Medium |
-| 6 | Voice-note and call intelligence | Converts conversations into CRM records and tasks | Medium |
-| 7 | Package and quote recommender | Matches customers with suitable travel products | Medium |
-| 8 | Forecasting and anomaly detection | Improves revenue and workload planning | High |
+| Priority | Feature                                       | Expected value                                            | Effort |
+| -------- | --------------------------------------------- | --------------------------------------------------------- | ------ |
+| 1        | AI follow-up composer                         | Faster and more consistent customer communication         | Low    |
+| 2        | Explainable lead scoring and next-best action | Helps staff focus on likely conversions                   | Medium |
+| 3        | Document extraction                           | Reduces passport, visa, invoice, and itinerary data entry | Medium |
+| 4        | Semantic CRM search                           | Finds relevant information without exact keywords         | Medium |
+| 5        | Manager daily briefing                        | Surfaces missed opportunities and operational risks       | Medium |
+| 6        | Voice-note and call intelligence              | Converts conversations into CRM records and tasks         | Medium |
+| 7        | Package and quote recommender                 | Matches customers with suitable travel products           | Medium |
+| 8        | Forecasting and anomaly detection             | Improves revenue and workload planning                    | High   |
 
 ## 1. AI Follow-up Composer
 

@@ -15,7 +15,11 @@ vi.mock("@/lib/logger", () => ({
 const sweepReminders = vi.fn(async () => ({ scanned: 0, emailed: 0 }));
 const sweepPassportExpiry = vi.fn(async () => ({ created: 0 }));
 const sweepPaymentDue = vi.fn(async () => ({ created: 0 }));
-vi.mock("@/modules/tasks/tasks.service", () => ({ sweepReminders, sweepPassportExpiry, sweepPaymentDue }));
+vi.mock("@/modules/tasks/tasks.service", () => ({
+  sweepReminders,
+  sweepPassportExpiry,
+  sweepPaymentDue,
+}));
 
 const sweepQuotationExpiry = vi.fn(async () => ({ expired: 0 }));
 vi.mock("@/modules/quotations/quotations.service", () => ({ sweepQuotationExpiry }));
@@ -26,15 +30,55 @@ vi.mock("@/modules/documents/documents.service", () => ({ sweepDocumentExpiry })
 const drainEmailOutbox = vi.fn(async () => ({ sent: 0, failed: 0 }));
 vi.mock("@/lib/email/outbox", () => ({ drainEmailOutbox }));
 
+const refreshScheduledInsights = vi.fn(async () => ({
+  users: 0,
+  briefs: 0,
+  qualityScans: 0,
+  forecasts: 0,
+  failures: [],
+}));
+vi.mock("@/modules/ai-enhancements/ai-enhancements.service", () => ({
+  refreshScheduledInsights,
+}));
+
 type RouteMod = { GET: (req: Request) => Promise<Response> };
 
 const ROUTES = [
-  { name: "sweep-reminders", sweep: sweepReminders, load: () => import("@/app/api/cron/sweep-reminders/route") },
-  { name: "sweep-passport-expiry", sweep: sweepPassportExpiry, load: () => import("@/app/api/cron/sweep-passport-expiry/route") },
-  { name: "sweep-payment-due", sweep: sweepPaymentDue, load: () => import("@/app/api/cron/sweep-payment-due/route") },
-  { name: "sweep-quotation-expiry", sweep: sweepQuotationExpiry, load: () => import("@/app/api/cron/sweep-quotation-expiry/route") },
-  { name: "sweep-document-expiry", sweep: sweepDocumentExpiry, load: () => import("@/app/api/cron/sweep-document-expiry/route") },
-  { name: "drain-email-outbox", sweep: drainEmailOutbox, load: () => import("@/app/api/cron/drain-email-outbox/route") },
+  {
+    name: "sweep-reminders",
+    sweep: sweepReminders,
+    load: () => import("@/app/api/cron/sweep-reminders/route"),
+  },
+  {
+    name: "sweep-passport-expiry",
+    sweep: sweepPassportExpiry,
+    load: () => import("@/app/api/cron/sweep-passport-expiry/route"),
+  },
+  {
+    name: "sweep-payment-due",
+    sweep: sweepPaymentDue,
+    load: () => import("@/app/api/cron/sweep-payment-due/route"),
+  },
+  {
+    name: "sweep-quotation-expiry",
+    sweep: sweepQuotationExpiry,
+    load: () => import("@/app/api/cron/sweep-quotation-expiry/route"),
+  },
+  {
+    name: "sweep-document-expiry",
+    sweep: sweepDocumentExpiry,
+    load: () => import("@/app/api/cron/sweep-document-expiry/route"),
+  },
+  {
+    name: "drain-email-outbox",
+    sweep: drainEmailOutbox,
+    load: () => import("@/app/api/cron/drain-email-outbox/route"),
+  },
+  {
+    name: "refresh-ai-insights",
+    sweep: refreshScheduledInsights,
+    load: () => import("@/app/api/cron/refresh-ai-insights/route"),
+  },
 ] as const;
 
 async function getHandler(load: () => Promise<unknown>) {

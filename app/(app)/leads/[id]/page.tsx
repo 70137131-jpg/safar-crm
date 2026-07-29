@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/session";
 import { can } from "@/lib/permissions";
 import { getLeadAction } from "@/modules/leads/leads.actions";
@@ -33,11 +36,16 @@ export default async function LeadDetailPage({ params, searchParams }: Props) {
   return (
     <PageWrapper>
       <Breadcrumbs
-        items={[
-          { label: "Leads", href: "/leads" },
-          { label: result.data.contactName },
-        ]}
+        items={[{ label: "Leads", href: "/leads" }, { label: result.data.contactName }]}
       />
+      <div className="mb-4 flex justify-end">
+        <Button asChild variant="outline" size="sm">
+          <Link href={{ pathname: "/ai-insights", query: { leadId: result.data.id } }}>
+            <Sparkles />
+            AI score and recommendations
+          </Link>
+        </Button>
+      </div>
       <LeadDetailClient lead={result.data} initialTab={tab} taskCaps={taskCaps} />
     </PageWrapper>
   );

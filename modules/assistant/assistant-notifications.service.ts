@@ -4,6 +4,7 @@ import { NotFoundError } from "@/lib/errors";
 import * as tasksService from "@/modules/tasks/tasks.service";
 import * as quotationsService from "@/modules/quotations/quotations.service";
 import { getNotificationConfig } from "@/modules/settings/settings.service";
+import { getNotificationRiskSnapshot } from "@/modules/ai-enhancements/ai-enhancements.service";
 import * as repo from "./assistant-notifications.repository";
 import type {
   AssistantNotificationDTO,
@@ -36,7 +37,7 @@ function dateLabel(value: Date): string {
 export async function syncNotifications(user: UserContext): Promise<void> {
   requirePermission(user, "assistant:use");
   const config = await getNotificationConfig();
-  const [tasks, quotations] = await Promise.all([
+  const [tasks, quotations, risks] = await Promise.all([
     config.notifyOverdueTasks
       ? tasksService.listTasks(user, {
           page: 1,
@@ -54,6 +55,12 @@ export async function syncNotifications(user: UserContext): Promise<void> {
           status: "SENT",
         })
       : Promise.resolve({ items: [] }),
+    getNotificationRiskSnapshot(user, {
+      includeDocuments: config.notifyPassportExpiry,
+      documentDays: config.passportExpiryWarnDays,
+      includePayments: config.notifyPaymentDue,
+      paymentDays: config.paymentDueWarnDays,
+    }),
   ]);
 
   const now = new Date();
@@ -88,6 +95,30 @@ export async function syncNotifications(user: UserContext): Promise<void> {
           quotation.validTill!,
         )}.`,
         href: `/quotations/${quotation.id}`,
+        dedupeKey,
+      };
+    }),
+    ...risks.documents.map((document) => {
+      const dedupeKey = `document-expiring:${document.id}`;
+      activeKeys.push(dedupeKey);
+      return {
+        userId: user.id,
+        kind: "DOCUMENT_EXPIRING" as const,
+        title: `${document.type.toLowerCase()} expiring`,
+        body: `${document.customerName}'s document expires on ${dateLabel(document.expiryDate)}.`,
+        href: document.href,
+        dedupeKey,
+      };
+    }),
+    ...risks.payments.map((payment) => {
+      const dedupeKey = `payment-risk:${payment.id}`;
+      activeKeys.push(dedupeKey);
+      return {
+        userId: user.id,
+        kind: "PAYMENT_RISK" as const,
+        title: "Payment due before travel",
+        body: `${payment.bookingNumber} has an outstanding balance and travels on ${dateLabel(payment.travelDate)}.`,
+        href: payment.href,
         dedupeKey,
       };
     }),
