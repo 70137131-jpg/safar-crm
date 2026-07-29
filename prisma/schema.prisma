@@ -178,18 +178,23 @@ model User {
   sessions Session[]
   accounts Account[]
 
-  assignedCustomers   Customer[]           @relation("CustomerAssignedAgent")
-  assignedLeads       Lead[]               @relation("LeadAssignedAgent")
-  createdInteractions Interaction[]
-  assignedTasks       Task[]               @relation("TaskAssignedTo")
-  recordedPayments    Payment[]            @relation("PaymentRecordedBy")
-  uploadedDocuments   Document[]           @relation("DocumentUploadedBy")
-  auditLogs           AuditLog[]           @relation("AuditLogActor")
-  leadStatusEvents    LeadStatusEvent[]    @relation("LeadStatusEventBy")
-  bookingStatusEvents BookingStatusEvent[] @relation("BookingStatusEventBy")
-  aiConversations     AiConversation[]
-  aiActionProposals   AiActionProposal[]
-  aiNotifications     AiNotification[]
+  assignedCustomers     Customer[]             @relation("CustomerAssignedAgent")
+  assignedLeads         Lead[]                 @relation("LeadAssignedAgent")
+  createdInteractions   Interaction[]
+  assignedTasks         Task[]                 @relation("TaskAssignedTo")
+  recordedPayments      Payment[]              @relation("PaymentRecordedBy")
+  uploadedDocuments     Document[]             @relation("DocumentUploadedBy")
+  auditLogs             AuditLog[]             @relation("AuditLogActor")
+  leadStatusEvents      LeadStatusEvent[]      @relation("LeadStatusEventBy")
+  bookingStatusEvents   BookingStatusEvent[]   @relation("BookingStatusEventBy")
+  aiConversations       AiConversation[]
+  aiActionProposals     AiActionProposal[]
+  aiNotifications       AiNotification[]
+  aiInsights            AiInsight[]
+  aiDrafts              AiCommunicationDraft[]
+  aiDocumentExtractions AiDocumentExtraction[]
+  aiMediaAnalyses       AiMediaAnalysis[]
+  aiKnowledgeChunks     AiKnowledgeChunk[]
 }
 
 // =============================================================
@@ -262,13 +267,14 @@ model Customer {
   updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
   deletedAt       DateTime? @db.Timestamptz(6)
 
-  assignedAgent User?         @relation("CustomerAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
+  assignedAgent User?                  @relation("CustomerAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
   leads         Lead[]
   bookings      Booking[]
   quotations    Quotation[]
   documents     Document[]
   interactions  Interaction[]
   tasks         Task[]
+  aiDrafts      AiCommunicationDraft[]
 
   // RAW MIGRATIONS:
   //   CREATE UNIQUE INDEX customer_email_active_uq
@@ -311,13 +317,14 @@ model Lead {
   updatedAt       DateTime     @updatedAt @db.Timestamptz(6)
   deletedAt       DateTime?    @db.Timestamptz(6)
 
-  customer      Customer?         @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  assignedAgent User?             @relation("LeadAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
+  customer      Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignedAgent User?                  @relation("LeadAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
   interactions  Interaction[]
   tasks         Task[]
   quotations    Quotation[]
   bookings      Booking[]
   statusEvents  LeadStatusEvent[]
+  aiDrafts      AiCommunicationDraft[]
 
   // RAW MIGRATIONS:
   //   ALTER TABLE "Lead" ADD CONSTRAINT lead_pax_positive CHECK (pax IS NULL OR pax > 0);
@@ -613,9 +620,11 @@ model Document {
   createdAt      DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
 
-  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  booking    Booking?  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  uploadedBy User      @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  customer        Customer?              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  booking         Booking?               @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  uploadedBy      User                   @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  aiExtractions   AiDocumentExtraction[]
+  aiMediaAnalyses AiMediaAnalysis[]
 
   // RAW MIGRATIONS:
   //   ALTER TABLE "Document" ADD CONSTRAINT document_has_parent
@@ -789,6 +798,50 @@ enum AiNotificationKind {
   TASK_DUE
   QUOTATION_EXPIRING
   ACTION_COMPLETED
+  LEAD_RISK
+  DOCUMENT_EXPIRING
+  PAYMENT_RISK
+  DATA_QUALITY
+  FORECAST_ALERT
+  INSIGHT_READY
+}
+
+enum AiInsightKind {
+  LEAD_SCORE
+  MANAGER_BRIEF
+  PACKAGE_RECOMMENDATION
+  QUOTE_REVIEW
+  DATA_QUALITY
+  FORECAST
+}
+
+enum AiInsightStatus {
+  ACTIVE
+  DISMISSED
+  APPLIED
+}
+
+enum AiDraftChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum AiDraftLanguage {
+  ENGLISH
+  URDU
+  ROMAN_URDU
+}
+
+enum AiReviewStatus {
+  PENDING
+  REVIEWED
+  APPLIED
+  REJECTED
+}
+
+enum AiMediaKind {
+  VOICE_NOTE
+  CALL_RECORDING
 }
 
 /// Transactional email outbox. Services enqueue a row in the SAME transaction
@@ -886,4 +939,122 @@ model AiNotification {
 
   @@unique([userId, dedupeKey])
   @@index([userId, readAt, createdAt(sort: Desc)])
+}
+
+/// Structured, explainable output from deterministic analysis or Gemini.
+/// `dedupeKey` allows event workers and user-triggered refreshes to be idempotent.
+model AiInsight {
+  id          String          @id @default(uuid()) @db.Uuid
+  userId      String          @db.Uuid
+  kind        AiInsightKind
+  status      AiInsightStatus @default(ACTIVE)
+  dedupeKey   String
+  subjectType String?
+  subjectId   String?
+  title       String
+  summary     String
+  score       Int?
+  confidence  Int?
+  reasons     String[]        @default([])
+  payload     Json
+  sourcePaths String[]        @default([])
+  expiresAt   DateTime?       @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, kind, status, updatedAt(sort: Desc)])
+  @@index([subjectType, subjectId])
+}
+
+/// An editable AI-authored message. Drafts are never sent by this table or by
+/// the AI service; a future channel integration must add a separate confirmed send.
+model AiCommunicationDraft {
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @db.Uuid
+  leadId     String?         @db.Uuid
+  customerId String?         @db.Uuid
+  channel    AiDraftChannel
+  language   AiDraftLanguage
+  tone       String
+  subject    String?
+  body       String
+  model      String?
+  createdAt  DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime        @updatedAt @db.Timestamptz(6)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([leadId])
+  @@index([customerId])
+}
+
+/// Review-gated structured fields extracted from a private CRM document.
+model AiDocumentExtraction {
+  id         String         @id @default(uuid()) @db.Uuid
+  documentId String         @db.Uuid
+  userId     String         @db.Uuid
+  status     AiReviewStatus @default(PENDING)
+  extracted  Json
+  confidence Int?
+  model      String?
+  reviewedAt DateTime?      @db.Timestamptz(6)
+  appliedAt  DateTime?      @db.Timestamptz(6)
+  createdAt  DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime       @updatedAt @db.Timestamptz(6)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, createdAt(sort: Desc)])
+  @@index([userId, status, createdAt(sort: Desc)])
+}
+
+/// Transcription and structured analysis of an uploaded audio document.
+model AiMediaAnalysis {
+  id          String      @id @default(uuid()) @db.Uuid
+  documentId  String      @db.Uuid
+  userId      String      @db.Uuid
+  kind        AiMediaKind
+  transcript  String
+  summary     String
+  sentiment   String?
+  speakers    Json?
+  actionItems Json
+  model       String?
+  createdAt   DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(6)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+/// Permission-isolated semantic-search snapshot. `embedding` is managed with
+/// parameterized SQL because Prisma does not natively map pgvector columns.
+model AiKnowledgeChunk {
+  id              String                     @id @default(uuid()) @db.Uuid
+  indexedByUserId String                     @db.Uuid
+  entityType      String
+  entityId        String
+  title           String
+  href            String
+  content         String
+  contentHash     String
+  metadata        Json
+  embedding       Unsupported("vector(768)")
+  createdAt       DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime                   @updatedAt @db.Timestamptz(6)
+
+  indexedBy User @relation(fields: [indexedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([indexedByUserId, entityType, entityId])
+  @@index([indexedByUserId, updatedAt(sort: Desc)])
 }

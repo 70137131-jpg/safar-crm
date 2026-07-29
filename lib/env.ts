@@ -49,6 +49,7 @@ const envSchema = z.object({
   // returns a configuration error until it is present.
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_MODEL: z.string().min(1).default("gemini-3.6-flash"),
+  GEMINI_EMBEDDING_MODEL: z.string().min(1).default("gemini-embedding-001"),
 
   // Cron
   CRON_SECRET: z.string().optional(),

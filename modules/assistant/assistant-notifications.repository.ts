@@ -61,7 +61,9 @@ export async function markStaleOperationalRead(userId: string, activeKeys: strin
     where: {
       userId,
       readAt: null,
-      kind: { in: ["TASK_DUE", "QUOTATION_EXPIRING"] },
+      kind: {
+        in: ["TASK_DUE", "QUOTATION_EXPIRING", "DOCUMENT_EXPIRING", "PAYMENT_RISK"],
+      },
       ...(activeKeys.length > 0 ? { dedupeKey: { notIn: activeKeys } } : {}),
     },
     data: { readAt: new Date() },

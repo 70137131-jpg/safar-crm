@@ -3,7 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
-import { Bell, Bot, CheckCircle2, CheckCheck, Clock3, FileClock } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  Bot,
+  CheckCircle2,
+  CheckCheck,
+  Clock3,
+  FileClock,
+  SearchCheck,
+  Sparkles,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +38,20 @@ function NotificationIcon({ kind }: { kind: AssistantNotificationDTO["kind"] }) 
   }
   if (kind === "ACTION_COMPLETED") {
     return <CheckCircle2 className={cn(className, "text-emerald-600")} />;
+  }
+  if (kind === "INSIGHT_READY") {
+    return <Sparkles className={cn(className, "text-violet-600")} />;
+  }
+  if (kind === "DATA_QUALITY") {
+    return <SearchCheck className={cn(className, "text-blue-600")} />;
+  }
+  if (
+    kind === "LEAD_RISK" ||
+    kind === "PAYMENT_RISK" ||
+    kind === "DOCUMENT_EXPIRING" ||
+    kind === "FORECAST_ALERT"
+  ) {
+    return <AlertTriangle className={cn(className, "text-amber-600")} />;
   }
   return <Bot className={cn(className, "text-primary")} />;
 }
