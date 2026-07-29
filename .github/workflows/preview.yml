@@ -17,7 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        # The AI enhancement migration creates pgvector-backed semantic-search
+        # storage, so the validation database must include the vector extension.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
