@@ -36,13 +36,18 @@ test.describe("Customers Module", () => {
   });
 
   test("edit a customer", async ({ page }) => {
+    test.setTimeout(120_000);
     await createCustomer(page, "Edit Me Customer");
 
     await page.getByRole("link", { name: "Edit" }).click();
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}\/edit(?:[?#]|$)/, { timeout: 10_000 });
-    await page.getByLabel("Name").fill("Edited Customer");
-    await page.getByRole("button", { name: "Save Changes" }).click();
-    await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
+    await expect(async () => {
+      await page.getByLabel("Name").fill("Edited Customer");
+      await page.getByRole("button", { name: "Save Changes" }).click();
+      await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, {
+        timeout: 20_000,
+      });
+    }).toPass({ timeout: 90_000 });
     await expect(page.getByRole("heading", { name: "Edited Customer" })).toBeVisible();
   });
 

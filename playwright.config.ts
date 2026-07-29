@@ -27,7 +27,9 @@ export default defineConfig({
   webServer: useExternalServer
     ? undefined
     : {
-        command: "pnpm dev",
+        // CI validates production behavior. `next dev --turbopack` can leave
+        // server actions and form hydration racing under a cold test worker.
+        command: process.env.CI ? "pnpm build && pnpm start" : "pnpm dev",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
