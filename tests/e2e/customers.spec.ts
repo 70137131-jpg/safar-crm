@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { login } from "./helpers";
 
 /**
  * E2E tests for the customers module.
@@ -7,16 +8,14 @@ import { test, expect, type Page } from "@playwright/test";
  * Configure SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD in .env for tests.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@safarcrm.local";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "AdminPass1234!";
-
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.fill("#email", ADMIN_EMAIL);
-  await page.fill("#password", ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL("**/dashboard", { timeout: 10000 });
+async function createCustomer(page: Page, name: string) {
+  await page.goto("/customers/new");
+  await page.getByLabel("Name").fill(name);
+  await page.getByLabel("Email").fill(`e2e-${Date.now()}@test.com`);
+  await page.getByLabel("Phone").fill("03001234567");
+  await page.getByLabel("Nationality").fill("PK");
+  await page.getByRole("button", { name: "Create Customer" }).click();
+  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
 }
 
 test.describe("Customers Module", () => {
@@ -25,45 +24,27 @@ test.describe("Customers Module", () => {
   });
 
   test("create a customer", async ({ page }) => {
-    await page.goto(`${BASE_URL}/customers/new`);
-    await page.fill("#name", "E2E Test Customer");
-    await page.fill("#email", `e2e-${Date.now()}@test.com`);
-    await page.fill("#phone", "03001234567");
-    await page.fill("#nationality", "PK");
-    await page.click('button[type="submit"]');
-
-    // Should redirect to customer detail
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    await createCustomer(page, "E2E Test Customer");
     await expect(page.locator("text=E2E Test Customer")).toBeVisible();
   });
 
   test("edit a customer", async ({ page }) => {
-    // First, create one
-    await page.goto(`${BASE_URL}/customers/new`);
-    await page.fill("#name", "Edit Me Customer");
-    await page.fill("#email", `edit-${Date.now()}@test.com`);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    await createCustomer(page, "Edit Me Customer");
 
-    // Navigate to edit
-    await page.click("text=Edit");
-    await page.waitForURL("**/edit", { timeout: 5000 });
-    await page.fill("#name", "Edited Customer");
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/customers\/[a-z0-9-]+$/, { timeout: 10000 });
+    await page.getByRole("link", { name: "Edit" }).click();
+    await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}\/edit(?:[?#]|$)/, { timeout: 10_000 });
+    await page.getByLabel("Name").fill("Edited Customer");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
     await expect(page.locator("text=Edited Customer")).toBeVisible();
   });
 
   test("delete and restore a customer", async ({ page }) => {
-    // Create
-    await page.goto(`${BASE_URL}/customers/new`);
     const uniqueName = `Delete Test ${Date.now()}`;
-    await page.fill("#name", uniqueName);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    await createCustomer(page, uniqueName);
 
     // Go to list
-    await page.goto(`${BASE_URL}/customers`);
+    await page.goto("/customers");
     await page.waitForSelector("text=" + uniqueName, { timeout: 5000 });
 
     // Open actions and delete
@@ -74,22 +55,23 @@ test.describe("Customers Module", () => {
     await page.waitForTimeout(1000);
 
     // Go to trash and restore
-    await page.goto(`${BASE_URL}/customers/trash`);
+    await page.goto("/customers/trash");
     await expect(page.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 5000 });
-    await page.locator(`text=${uniqueName}`).locator("..").locator("..").locator("text=Restore").click();
+    await page
+      .locator(`text=${uniqueName}`)
+      .locator("..")
+      .locator("..")
+      .locator("text=Restore")
+      .click();
     await page.locator('button:has-text("Restore")').last().click(); // confirm
   });
 
   test("customer list is responsive on mobile viewport", async ({ page }) => {
-    // Create a customer first
-    await page.goto(`${BASE_URL}/customers/new`);
-    await page.fill("#name", `Mobile Test ${Date.now()}`);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    await createCustomer(page, `Mobile Test ${Date.now()}`);
 
     // Set mobile viewport and visit list
     await page.setViewportSize({ width: 360, height: 640 });
-    await page.goto(`${BASE_URL}/customers`);
+    await page.goto("/customers");
 
     // Table should be hidden, cards visible
     await expect(page.locator("table")).toBeHidden();

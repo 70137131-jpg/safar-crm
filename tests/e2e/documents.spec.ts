@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { login } from "./helpers";
 
 /**
  * E2E tests for the documents module.
@@ -10,26 +11,16 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@safarcrm.local";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "AdminPass1234!";
 
 const PDF_BYTES = Buffer.from("%PDF-1.4\n% E2E test document\n");
 
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.fill("#email", ADMIN_EMAIL);
-  await page.fill("#password", ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL("**/dashboard", { timeout: 10000 });
-}
-
 async function createCustomerAndOpenDocs(page: Page): Promise<string> {
   const name = `Docs Test ${Date.now()}`;
-  await page.goto(`${BASE_URL}/customers/new`);
-  await page.fill("#name", name);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/\/customers\/[a-z0-9-]+$/, { timeout: 10000 });
-  await page.click("text=Documents");
+  await page.goto("/customers/new");
+  await page.getByLabel("Name").fill(name);
+  await page.getByRole("button", { name: "Create Customer" }).click();
+  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "Documents" }).click();
   return name;
 }
 
@@ -43,6 +34,13 @@ async function uploadPdf(page: Page, fileName: string) {
 }
 
 test.describe("Documents Module", () => {
+  test.skip(
+    !process.env.R2_ACCOUNT_ID ||
+      !process.env.R2_ACCESS_KEY_ID ||
+      !process.env.R2_SECRET_ACCESS_KEY,
+    "Document E2E requires configured R2 credentials.",
+  );
+
   test.beforeEach(async ({ page }) => {
     await login(page);
   });

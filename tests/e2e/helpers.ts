@@ -25,12 +25,14 @@ export async function login(
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /sign in/i }).click();
-  await page.waitForURL("**/dashboard", { timeout: 15_000 });
+  // App Router navigation does not reliably trigger a new document `load`
+  // event, so use Playwright's web-first URL assertion instead of waitForURL.
+  await expect(page).toHaveURL(/\/dashboard(?:[?#]|$)/, { timeout: 15_000 });
 }
 
 export async function logout(page: Page) {
   await page.getByRole("button", { name: /sign out/i }).click();
-  await page.waitForURL("**/login", { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/login(?:[?#]|$)/, { timeout: 15_000 });
 }
 
 export async function expectOnLogin(page: Page) {
