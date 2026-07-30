@@ -18,8 +18,9 @@ export function TopNavbar({ userName, userRole, onMenuClick }: Props) {
     await signOut({
       fetchOptions: {
         onSuccess: () => {
+          // No router.refresh() after push — it cancels the pending navigation
+          // and leaves the user on the authenticated page after signing out.
           router.push("/login");
-          router.refresh();
         },
         onError: () => {
           toast.error("Sign out failed");

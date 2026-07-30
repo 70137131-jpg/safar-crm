@@ -97,8 +97,8 @@ export function BookingForm({ mode, booking, initialCustomer, packages }: Props)
         });
         if (result.ok) {
           toast.success("Booking created");
+          // No router.refresh() after push — it cancels the pending navigation.
           router.push(`/bookings/${result.data.id}` as Route);
-          router.refresh();
         } else {
           toast.error(result.message);
         }
@@ -112,7 +112,6 @@ export function BookingForm({ mode, booking, initialCustomer, packages }: Props)
         if (result.ok) {
           toast.success("Booking updated");
           router.push(`/bookings/${booking.id}` as Route);
-          router.refresh();
         } else {
           toast.error(result.message);
         }

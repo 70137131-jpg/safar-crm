@@ -86,8 +86,8 @@ export function LeadForm({ mode, lead }: { mode: "create" | "edit"; lead?: LeadD
           : await updateLeadAction(lead!.id, values);
       if (result.ok) {
         toast.success(mode === "create" ? "Lead created" : "Lead updated");
+        // No router.refresh() after push — it cancels the pending navigation.
         router.push(`/leads/${result.data.id}` as Route);
-        router.refresh();
       } else {
         toast.error(result.message);
       }
