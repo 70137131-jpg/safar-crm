@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { NO_STATE } from "./helpers";
 
 /**
  * Login lockout (TASKS.md §1.13). Better Auth rate-limits `/sign-in/email` to
@@ -11,6 +12,7 @@ import { test, expect } from "@playwright/test";
  * It is isolated in its own file and runs serially for the same reason.
  */
 test.describe.configure({ mode: "serial" });
+test.use({ storageState: NO_STATE });
 
 test("rate-limits repeated failed login attempts", async ({ page }) => {
   const email = `lockout-${Date.now()}@safarcrm.local`;

@@ -3,98 +3,127 @@ import { test, expect, type Page } from "@playwright/test";
 /**
  * E2E tests for the customers module.
  *
- * Precondition: the app is running with a seeded ADMIN user.
- * Configure SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD in .env for tests.
+ * Runs as the seeded ADMIN via the session saved by `auth.setup.ts` — no
+ * per-test sign-in, which would trip the 5/60s rate limit on /sign-in/email.
+ *
+ * Locators are role/label based. The app's shadcn <Input>s derive their ids
+ * from `useId()`, so `#email`-style selectors match nothing — see the note in
+ * `helpers.ts`. `baseURL` comes from playwright.config.ts, so paths are relative.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@safarcrm.local";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "AdminPass1234!";
+const DETAIL_URL = /\/customers\/[0-9a-f-]{36}$/;
+// Cold dev-server route/action compiles need headroom, especially in CI.
+const NAV = 45_000;
 
-async function login(page: Page) {
-  await page.goto(`${BASE_URL}/login`);
-  await page.fill("#email", ADMIN_EMAIL);
-  await page.fill("#password", ADMIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL("**/dashboard", { timeout: 10000 });
+/**
+ * A unique Pakistani mobile number. `phone` is unique per customer and the
+ * seed's demo customer holds +923001234567, so tests must not hard-code one.
+ * Normalises to +923XXXXXXXXX (see lib/phone/normalize.ts).
+ */
+function uniquePhone(stamp: number): string {
+  return `0300${String(stamp).slice(-7)}`;
+}
+
+async function createCustomer(
+  page: Page,
+  fields: { name: string; email?: string; phone?: string; nationality?: string },
+): Promise<string> {
+  await page.goto("/customers/new");
+  await page.getByLabel("Name").fill(fields.name);
+  if (fields.email) await page.getByLabel("Email").fill(fields.email);
+  if (fields.phone) await page.getByLabel("Phone").fill(fields.phone);
+  if (fields.nationality) {
+    await page.getByLabel("Nationality").fill(fields.nationality);
+  }
+  await page.getByRole("button", { name: "Create Customer" }).click();
+  // The App Router does a client-side navigation to the detail page here.
+  await expect(page).toHaveURL(DETAIL_URL, { timeout: NAV });
+  return page.url().split("/customers/")[1]!.split(/[?#]/)[0]!;
 }
 
 test.describe("Customers Module", () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(() => {
+    test.setTimeout(120_000);
   });
 
   test("create a customer", async ({ page }) => {
-    await page.goto(`${BASE_URL}/customers/new`);
-    await page.fill("#name", "E2E Test Customer");
-    await page.fill("#email", `e2e-${Date.now()}@test.com`);
-    await page.fill("#phone", "03001234567");
-    await page.fill("#nationality", "PK");
-    await page.click('button[type="submit"]');
-
-    // Should redirect to customer detail
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
-    await expect(page.locator("text=E2E Test Customer")).toBeVisible();
+    const stamp = Date.now();
+    const name = `E2E Test Customer ${stamp}`;
+    await createCustomer(page, {
+      name,
+      email: `e2e-${stamp}@test.com`,
+      // Unique per run: phone is unique per customer, and the seed's demo
+      // customer already owns +923001234567.
+      phone: uniquePhone(stamp),
+      nationality: "PK",
+    });
+    await expect(page.getByText(name).first()).toBeVisible({ timeout: NAV });
   });
 
   test("edit a customer", async ({ page }) => {
-    // First, create one
-    await page.goto(`${BASE_URL}/customers/new`);
-    await page.fill("#name", "Edit Me Customer");
-    await page.fill("#email", `edit-${Date.now()}@test.com`);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    const stamp = Date.now();
+    const id = await createCustomer(page, {
+      name: `Edit Me Customer ${stamp}`,
+      email: `customer-${stamp}@test.com`,
+    });
 
-    // Navigate to edit
-    await page.click("text=Edit");
-    await page.waitForURL("**/edit", { timeout: 5000 });
-    await page.fill("#name", "Edited Customer");
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/customers\/[a-z0-9-]+$/, { timeout: 10000 });
-    await expect(page.locator("text=Edited Customer")).toBeVisible();
+    // `exact` avoids also matching the mailto: link when the email happens to
+    // contain "edit".
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/customers/${id}/edit$`), {
+      timeout: NAV,
+    });
+
+    const edited = `Edited Customer ${stamp}`;
+    await page.getByLabel("Name").fill(edited);
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expect(page).toHaveURL(DETAIL_URL, { timeout: NAV });
+    await expect(page.getByText(edited).first()).toBeVisible({ timeout: NAV });
   });
 
   test("delete and restore a customer", async ({ page }) => {
-    // Create
-    await page.goto(`${BASE_URL}/customers/new`);
-    const uniqueName = `Delete Test ${Date.now()}`;
-    await page.fill("#name", uniqueName);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    const name = `Delete Test ${Date.now()}`;
+    await createCustomer(page, { name });
 
-    // Go to list
-    await page.goto(`${BASE_URL}/customers`);
-    await page.waitForSelector("text=" + uniqueName, { timeout: 5000 });
+    // Filter the list down to the new customer so pagination can't hide it.
+    await page.goto("/customers");
+    await page.getByPlaceholder("Search by name").fill(name);
 
-    // Open actions and delete
-    const row = page.locator(`text=${uniqueName}`).locator("..").locator("..");
-    await row.locator('[aria-label="Actions"]').click();
-    await row.locator("text=Delete").click();
-    await page.locator("text=Delete").last().click(); // confirm dialog
-    await page.waitForTimeout(1000);
+    // Rows carry no accessible name, so filter by text rather than `{ name }`.
+    const row = page.getByRole("row").filter({ hasText: name });
+    await expect(row).toBeVisible({ timeout: NAV });
 
-    // Go to trash and restore
-    await page.goto(`${BASE_URL}/customers/trash`);
-    await expect(page.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 5000 });
-    await page.locator(`text=${uniqueName}`).locator("..").locator("..").locator("text=Restore").click();
-    await page.locator('button:has-text("Restore")').last().click(); // confirm
+    await row.getByRole("button", { name: "Actions" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    await page.getByRole("button", { name: "Delete" }).last().click(); // confirm
+    await expect(row).toBeHidden({ timeout: NAV });
+
+    // Soft-deleted customers land in trash, which renders <Card>s rather than
+    // table rows — `div.bg-card` is the Card root (components/ui/card.tsx).
+    await page.goto("/customers/trash");
+    const trashCard = page.locator("div.bg-card").filter({ hasText: name });
+    await expect(trashCard).toBeVisible({ timeout: NAV });
+
+    await trashCard.getByRole("button", { name: "Restore" }).click();
+    await page.getByRole("button", { name: "Restore" }).last().click(); // confirm
+    await expect(trashCard).toBeHidden({ timeout: NAV });
   });
 
   test("customer list is responsive on mobile viewport", async ({ page }) => {
-    // Create a customer first
-    await page.goto(`${BASE_URL}/customers/new`);
-    await page.fill("#name", `Mobile Test ${Date.now()}`);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("**/customers/**", { timeout: 10000 });
+    const name = `Mobile Test ${Date.now()}`;
+    await createCustomer(page, { name });
 
-    // Set mobile viewport and visit list
     await page.setViewportSize({ width: 360, height: 640 });
-    await page.goto(`${BASE_URL}/customers`);
+    await page.goto("/customers");
+    await page.getByPlaceholder("Search by name").fill(name);
 
-    // Table should be hidden, cards visible
-    await expect(page.locator("table")).toBeHidden();
-    // Cards should be visible
-    const cards = page.locator(".rounded-lg.border.bg-card");
-    await expect(cards.first()).toBeVisible({ timeout: 5000 });
+    // The desktop table wrapper is `hidden … md:block`; cards replace it. The
+    // table's copy of the name stays in the DOM but hidden, so scope the
+    // assertion to the visible (card) copy.
+    await expect(page.locator("table")).toBeHidden({ timeout: NAV });
+    await expect(
+      page.getByRole("link", { name }).filter({ visible: true }),
+    ).toBeVisible({ timeout: NAV });
   });
 });
