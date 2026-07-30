@@ -41,6 +41,10 @@ export const updateAgencySchema = z.object({
   agencyEmail: optionalEmail,
   agencyAddress: optionalText(500),
   agencyWebsite: optionalUrl,
+  // NTN / STRN printed on quotation and invoice PDFs. Free text: Pakistani
+  // registration numbers come in several formats (7–8 digit NTN, 13-digit
+  // CNIC-based, STRN), so the shape is not constrained beyond a length cap.
+  taxRegistrationNo: optionalText(50),
   taxPercentage: z.coerce.number().min(0, "Cannot be negative").max(100, "Cannot exceed 100%"),
   defaultCurrency: z.literal("PKR").default("PKR"),
   defaultTimezone: z.string().trim().min(1).default("Asia/Karachi"),

@@ -18,6 +18,7 @@ export interface SettingsWriteData {
   agencyAddress?: string | null;
   agencyWebsite?: string | null;
   agencyLogoKey?: string | null;
+  taxRegistrationNo?: string | null;
   defaultTaxBps?: number;
   defaultCurrency?: string;
   defaultTimezone?: string;
