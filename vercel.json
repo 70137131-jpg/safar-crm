@@ -26,6 +26,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/refresh-ai-insights",
+      "schedule": "30 3 * * *"
+    },
+    {
       "path": "/api/cron/daily-summary",
       "schedule": "0 4 * * *"
     }

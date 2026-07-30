@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Menu, LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { toast } from "sonner";
+import { NotificationBell } from "./NotificationBell";
 
 interface Props {
   userName: string;
@@ -45,9 +46,10 @@ export function TopNavbar({ userName, userRole, onMenuClick }: Props) {
         <div className="mt-1 text-xs text-muted-foreground">Customers, pipeline, bookings, and payments</div>
       </div>
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <div className="hidden text-right md:block">
-          <div className="text-sm font-medium leading-none">{userName}</div>
-          <div className="text-xs text-muted-foreground">{userRole}</div>
+          <div className="text-sm leading-none font-medium">{userName}</div>
+          <div className="text-muted-foreground text-xs">{userRole}</div>
         </div>
         <button
           type="button"

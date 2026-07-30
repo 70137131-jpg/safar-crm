@@ -2,12 +2,7 @@ import type { DocumentType, TaskType } from "@prisma/client";
 import type { UserContext } from "@/lib/permissions/types";
 import { db } from "@/lib/db";
 import { can, requirePermission } from "@/lib/permissions";
-import {
-  ForbiddenError,
-  IntegrationError,
-  NotFoundError,
-  ValidationError,
-} from "@/lib/errors";
+import { ForbiddenError, IntegrationError, NotFoundError, ValidationError } from "@/lib/errors";
 import { withAudit, logAudit } from "@/lib/audit";
 import {
   assertUploadConstraints,
@@ -15,6 +10,7 @@ import {
   createSignedDownloadUrl,
   createSignedUploadUrl,
   deleteFile,
+  getFileBytes,
   headObject,
 } from "@/lib/storage/r2";
 import { logger } from "@/lib/logger";
@@ -287,6 +283,50 @@ export async function getDownloadUrl(
   return { url, fileName: doc.fileName };
 }
 
+export interface DocumentAnalysisSource {
+  id: string;
+  type: DocumentType;
+  fileName: string;
+  contentType: string;
+  customerId: string | null;
+  bookingId: string | null;
+  bytes: Uint8Array;
+}
+
+/**
+ * Supplies private document bytes to a bounded server-side AI workflow. This
+ * follows the same record ownership policy as downloads and records a distinct
+ * audit event without exposing a signed URL to the model or browser.
+ */
+export async function getDocumentAnalysisSource(
+  user: UserContext,
+  id: string,
+): Promise<DocumentAnalysisSource> {
+  const doc = await repo.findById(id);
+  if (!doc) throw new NotFoundError("Document not found");
+  requirePermission(user, "documents:view", ownerResource(doc));
+  const bytes = await getFileBytes(doc.fileKey);
+  await logAudit({
+    actorId: user.id,
+    action: "document.aiAnalyze",
+    entity: "Document",
+    entityId: doc.id,
+    before: null,
+    after: { type: doc.type, contentType: doc.contentType, sizeBytes: doc.sizeBytes },
+    ip: user.ip,
+    userAgent: user.userAgent,
+  });
+  return {
+    id: doc.id,
+    type: doc.type,
+    fileName: doc.fileName,
+    contentType: doc.contentType,
+    customerId: doc.customerId,
+    bookingId: doc.bookingId,
+    bytes,
+  };
+}
+
 // ─── Mutations ───────────────────────────────────────────────────────────────
 
 export async function updateDocument(
@@ -388,9 +428,7 @@ function addDays(base: Date, days: number): Date {
  *   - VISA → TaskType.OTHER, deduped by a deterministic title per customer
  *     (the schema has no sourceKey column / VISA task type — see README note).
  */
-export async function sweepDocumentExpiry(
-  now: Date = new Date(),
-): Promise<ExpirySweepResult> {
+export async function sweepDocumentExpiry(now: Date = new Date()): Promise<ExpirySweepResult> {
   const result: ExpirySweepResult = {
     scanned: 0,
     passportTasksCreated: 0,
@@ -403,16 +441,17 @@ export async function sweepDocumentExpiry(
     taskType: TaskType;
     label: string;
   }> = [
-    { type: "PASSPORT", windowDays: PASSPORT_WINDOW_DAYS, taskType: "PASSPORT_EXPIRY", label: "Passport" },
+    {
+      type: "PASSPORT",
+      windowDays: PASSPORT_WINDOW_DAYS,
+      taskType: "PASSPORT_EXPIRY",
+      label: "Passport",
+    },
     { type: "VISA", windowDays: VISA_WINDOW_DAYS, taskType: "OTHER", label: "Visa" },
   ];
 
   for (const bucket of buckets) {
-    const docs = await repo.findExpiringByType(
-      bucket.type,
-      now,
-      addDays(now, bucket.windowDays),
-    );
+    const docs = await repo.findExpiringByType(bucket.type, now, addDays(now, bucket.windowDays));
 
     for (const doc of docs) {
       result.scanned++;

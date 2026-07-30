@@ -14,6 +14,8 @@ import {
   ListChecks,
   BarChart3,
   Settings as SettingsIcon,
+  Bot,
+  BrainCircuit,
   Plane,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -28,6 +30,8 @@ const NAV = [
   { label: "Invoices", href: "/invoices", icon: ReceiptText, roles: ["ADMIN", "MANAGER", "ACCOUNTANT"] },
   { label: "Tasks", href: "/tasks", icon: ListChecks },
   { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "AI Workspace", href: "/ai-insights", icon: BrainCircuit },
+  { label: "Ask Safar", href: "/assistant", icon: Bot },
   { label: "Settings", href: "/settings", icon: SettingsIcon },
 ] as const;
 

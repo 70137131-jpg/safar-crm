@@ -1,5 +1,7 @@
 # Safar CRM
 
+AI implementation and deployment notes: [AI_FEATURES.md](AI_FEATURES.md).
+
 Safar CRM is a private internal CRM for a single Pakistani travel agency. It is built to capture enquiries, manage customers and leads, track every interaction, generate quotations and bookings, and keep follow-ups and payments visible to staff across the business.
 
 Live app: [safar-crm.vercel.app](https://safar-crm.vercel.app/)
@@ -103,24 +105,24 @@ pnpm seed
 
 ## Available scripts
 
-| Script | Description |
-| --- | --- |
-| `pnpm dev` | Start the development server |
-| `pnpm build` | Build the production app |
-| `pnpm start` | Start the production server |
-| `pnpm lint` | Run ESLint |
-| `pnpm typecheck` | Run TypeScript type checking |
-| `pnpm format` | Format the codebase with Prettier |
-| `pnpm prisma:generate` | Generate Prisma client code |
-| `pnpm prisma:migrate` | Run a local Prisma migration |
-| `pnpm prisma:deploy` | Apply migrations in deployment environments |
-| `pnpm prisma:studio` | Open Prisma Studio |
-| `pnpm seed` | Seed the database |
-| `pnpm test` | Run Vitest in watch mode |
-| `pnpm test:db` | Run integration tests that require a database |
-| `pnpm test:e2e` | Run Playwright end-to-end tests |
-| `pnpm db:verify-runtime-role` | Verify the runtime database role |
-| `pnpm auth:generate` | Regenerate Better Auth tables in the Prisma schema |
+| Script                        | Description                                        |
+| ----------------------------- | -------------------------------------------------- |
+| `pnpm dev`                    | Start the development server                       |
+| `pnpm build`                  | Build the production app                           |
+| `pnpm start`                  | Start the production server                        |
+| `pnpm lint`                   | Run ESLint                                         |
+| `pnpm typecheck`              | Run TypeScript type checking                       |
+| `pnpm format`                 | Format the codebase with Prettier                  |
+| `pnpm prisma:generate`        | Generate Prisma client code                        |
+| `pnpm prisma:migrate`         | Run a local Prisma migration                       |
+| `pnpm prisma:deploy`          | Apply migrations in deployment environments        |
+| `pnpm prisma:studio`          | Open Prisma Studio                                 |
+| `pnpm seed`                   | Seed the database                                  |
+| `pnpm test`                   | Run Vitest in watch mode                           |
+| `pnpm test:db`                | Run integration tests that require a database      |
+| `pnpm test:e2e`               | Run Playwright end-to-end tests                    |
+| `pnpm db:verify-runtime-role` | Verify the runtime database role                   |
+| `pnpm auth:generate`          | Regenerate Better Auth tables in the Prisma schema |
 
 ## Development notes
 

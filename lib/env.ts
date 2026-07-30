@@ -44,6 +44,13 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
 
+  // Gemini-powered internal CRM copilot. Optional at build/test time so the
+  // app can be deployed before a key is provisioned; the assistant route
+  // returns a configuration error until it is present.
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).default("gemini-3.6-flash"),
+  GEMINI_EMBEDDING_MODEL: z.string().min(1).default("gemini-embedding-001"),
+
   // Cron
   CRON_SECRET: z.string().optional(),
 

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/session";
 import { can } from "@/lib/permissions";
 import { getQuotationAction } from "@/modules/quotations/quotations.actions";
@@ -27,9 +30,7 @@ export default async function QuotationDetailPage({ params }: Props) {
   const user = await getCurrentUser();
   const owner = {
     assignedAgentId:
-      result.data.customer?.assignedAgentId ??
-      result.data.lead?.assignedAgentId ??
-      null,
+      result.data.customer?.assignedAgentId ?? result.data.lead?.assignedAgentId ?? null,
   };
   const caps = {
     canEdit: !!user && can(user, "quotations:update", owner),
@@ -44,11 +45,15 @@ export default async function QuotationDetailPage({ params }: Props) {
           { label: result.data.quoteNumber ?? "Draft" },
         ]}
       />
-      <QuotationDetailClient
-        key={result.data.id}
-        quotation={result.data}
-        caps={caps}
-      />
+      <div className="mb-4 flex justify-end">
+        <Button asChild variant="outline" size="sm">
+          <Link href={{ pathname: "/ai-insights", query: { quotationId: result.data.id } }}>
+            <ShieldCheck />
+            AI quality review
+          </Link>
+        </Button>
+      </div>
+      <QuotationDetailClient key={result.data.id} quotation={result.data} caps={caps} />
     </PageWrapper>
   );
 }

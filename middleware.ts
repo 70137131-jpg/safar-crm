@@ -23,6 +23,7 @@ const PROTECTED_PREFIXES = [
   "/reports",
   "/tasks",
   "/settings",
+  "/assistant",
 ];
 
 // Better Auth names the session cookie `<cookiePrefix>.session_token`
@@ -39,9 +40,7 @@ export function middleware(request: NextRequest) {
   );
   if (!requiresAuth) return NextResponse.next();
 
-  const hasSession = request.cookies
-    .getAll()
-    .some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX));
+  const hasSession = request.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX));
   if (!hasSession) {
     const url = new URL("/login", request.url);
     url.searchParams.set("from", pathname);

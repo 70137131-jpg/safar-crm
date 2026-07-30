@@ -62,12 +62,22 @@ describe("ADMIN — full access", () => {
 describe("MANAGER — all business modules, but not an admin", () => {
   it("can run the full sales/CRM pipeline", () => {
     for (const perm of [
-      "customers:create", "customers:delete", "customers:import",
-      "leads:create", "leads:assign", "leads:delete", "leads:convert",
-      "bookings:create", "bookings:cancel",
-      "payments:create", "payments:refund",
-      "quotations:send", "reports:financial", "reports:export",
-      "users:view", "audit:view",
+      "customers:create",
+      "customers:delete",
+      "customers:import",
+      "leads:create",
+      "leads:assign",
+      "leads:delete",
+      "leads:convert",
+      "bookings:create",
+      "bookings:cancel",
+      "payments:create",
+      "payments:refund",
+      "quotations:send",
+      "reports:financial",
+      "reports:export",
+      "users:view",
+      "audit:view",
     ] as Permission[]) {
       expect(can(manager, perm)).toBe(true);
     }
@@ -76,7 +86,9 @@ describe("MANAGER — all business modules, but not an admin", () => {
   it("cannot manage users/admins, issue/void invoices, or change settings", () => {
     for (const perm of [
       "users:manage",
-      "invoices:create", "invoices:update", "invoices:void",
+      "invoices:create",
+      "invoices:update",
+      "invoices:void",
       "settings:update",
     ] as Permission[]) {
       expect(can(manager, perm)).toBe(false);
@@ -87,10 +99,17 @@ describe("MANAGER — all business modules, but not an admin", () => {
 describe("AGENT — operational, ownership-scoped", () => {
   it("can run day-to-day sales actions", () => {
     for (const perm of [
-      "customers:create", "leads:create", "leads:convert",
-      "bookings:create", "payments:create", "quotations:send",
-      "interactions:create", "tasks:create", "documents:upload",
+      "customers:create",
+      "leads:create",
+      "leads:convert",
+      "bookings:create",
+      "payments:create",
+      "quotations:send",
+      "interactions:create",
+      "tasks:create",
+      "documents:upload",
       "reports:view",
+      "assistant:use",
     ] as Permission[]) {
       expect(can(agent, perm)).toBe(true);
     }
@@ -98,12 +117,20 @@ describe("AGENT — operational, ownership-scoped", () => {
 
   it("is denied privileged / financial / admin actions", () => {
     for (const perm of [
-      "customers:delete", "leads:assign", "leads:delete",
-      "bookings:cancel", "payments:refund",
-      "invoices:create", "invoices:void",
-      "reports:financial", "reports:export",
-      "settings:view", "settings:update",
-      "users:view", "users:manage", "audit:view",
+      "customers:delete",
+      "leads:assign",
+      "leads:delete",
+      "bookings:cancel",
+      "payments:refund",
+      "invoices:create",
+      "invoices:void",
+      "reports:financial",
+      "reports:export",
+      "settings:view",
+      "settings:update",
+      "users:view",
+      "users:manage",
+      "audit:view",
     ] as Permission[]) {
       expect(can(agent, perm)).toBe(false);
     }
@@ -113,9 +140,14 @@ describe("AGENT — operational, ownership-scoped", () => {
 describe("ACCOUNTANT — financial only", () => {
   it("can handle money + financial reporting", () => {
     for (const perm of [
-      "payments:create", "payments:refund",
-      "invoices:create", "invoices:update", "invoices:void",
-      "reports:financial", "reports:export",
+      "payments:create",
+      "payments:refund",
+      "invoices:create",
+      "invoices:update",
+      "invoices:void",
+      "reports:financial",
+      "reports:export",
+      "assistant:use",
     ] as Permission[]) {
       expect(can(accountant, perm)).toBe(true);
     }
@@ -126,11 +158,17 @@ describe("ACCOUNTANT — financial only", () => {
       expect(can(accountant, perm)).toBe(true);
     }
     for (const perm of [
-      "customers:create", "customers:update", "customers:delete",
-      "leads:create", "leads:update",
-      "bookings:create", "bookings:cancel",
-      "quotations:create", "quotations:send",
-      "users:view", "settings:update",
+      "customers:create",
+      "customers:update",
+      "customers:delete",
+      "leads:create",
+      "leads:update",
+      "bookings:create",
+      "bookings:cancel",
+      "quotations:create",
+      "quotations:send",
+      "users:view",
+      "settings:update",
     ] as Permission[]) {
       expect(can(accountant, perm)).toBe(false);
     }
@@ -180,9 +218,9 @@ describe("requirePermission", () => {
   });
 
   it("throws ForbiddenError on ownership violation", () => {
-    expect(() =>
-      requirePermission(agent, "leads:update", { assignedAgentId: "agent-2" }),
-    ).toThrow(ForbiddenError);
+    expect(() => requirePermission(agent, "leads:update", { assignedAgentId: "agent-2" })).toThrow(
+      ForbiddenError,
+    );
   });
 
   it("throws UnauthorizedError when there is no user", () => {
