@@ -19,17 +19,17 @@ export function AppShell({ userName, userRole, children }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen">
       {/* Skip link — first focusable element, visible only on keyboard focus (WCAG 2.4.1). */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground focus:shadow-md"
+        className="focus:bg-primary focus:text-primary-foreground sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-4 focus:z-50 focus:rounded-md focus:px-3 focus:py-2 focus:text-sm focus:shadow-md"
       >
         Skip to main content
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="hidden w-[17rem] shrink-0 border-r bg-card/95 shadow-[1px_0_0_hsl(var(--border))] md:block">
+      <aside className="bg-card hidden w-64 shrink-0 border-r md:block">
         <AppSidebar userRole={userRole} />
       </aside>
 
@@ -49,7 +49,7 @@ export function AppShell({ userName, userRole, children }: Props) {
         />
         <aside
           className={cn(
-            "absolute left-0 top-0 h-full w-[17rem] border-r bg-card shadow-2xl transition-transform",
+            "bg-card absolute top-0 left-0 h-full w-64 border-r shadow-xl transition-transform",
             open ? "translate-x-0" : "-translate-x-full",
           )}
         >
@@ -59,7 +59,7 @@ export function AppShell({ userName, userRole, children }: Props) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNavbar userName={userName} userRole={userRole} onMenuClick={() => setOpen(true)} />
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none md:p-6 lg:p-8">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none md:p-6">
           {children}
         </main>
       </div>
