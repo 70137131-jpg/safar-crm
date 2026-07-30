@@ -49,14 +49,6 @@ export const listUsersAction = serverAction(
   },
 );
 
-export const getUserAction = serverAction(
-  "users.get",
-  async (id: string): Promise<UserDTO> => {
-    const user = await requireUser();
-    return service.getUser(user, id);
-  },
-);
-
 export const getProfileAction = serverAction("users.profile", async (): Promise<UserDTO> => {
   const user = await requireUser();
   return service.getProfile(user);

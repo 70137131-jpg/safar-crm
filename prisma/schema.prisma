@@ -195,6 +195,7 @@ model User {
   aiDocumentExtractions AiDocumentExtraction[]
   aiMediaAnalyses       AiMediaAnalysis[]
   aiKnowledgeChunks     AiKnowledgeChunk[]
+  importRuns            ImportRun[]
 }
 
 // =============================================================
@@ -780,6 +781,12 @@ enum EmailStatus {
   FAILED
 }
 
+enum ImportRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 enum AiMessageRole {
   USER
   ASSISTANT
@@ -858,6 +865,7 @@ model EmailOutbox {
   maxAttempts Int         @default(5)
   relatedType String? /// e.g. "Quotation"
   relatedId   String?     @db.Uuid
+  dedupeKey   String?     @unique /// optional idempotency key for scheduled/system email
   lastError   String?
   scheduledAt DateTime    @default(now()) @db.Timestamptz(6)
   sentAt      DateTime?   @db.Timestamptz(6)
@@ -1057,4 +1065,24 @@ model AiKnowledgeChunk {
 
   @@unique([indexedByUserId, entityType, entityId])
   @@index([indexedByUserId, updatedAt(sort: Desc)])
+}
+
+/// Durable history for customer CSV/XLSX imports and their row-level errors.
+model ImportRun {
+  id           String          @id @default(uuid()) @db.Uuid
+  fileName     String
+  fileType     String
+  status       ImportRunStatus @default(RUNNING)
+  totalRows    Int             @default(0)
+  successCount Int             @default(0)
+  errorCount   Int             @default(0)
+  errors       Json?
+  createdById  String          @db.Uuid
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  completedAt  DateTime?       @db.Timestamptz(6)
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([createdById, createdAt(sort: Desc)])
 }

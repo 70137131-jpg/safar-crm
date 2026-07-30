@@ -16,6 +16,20 @@ export const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe-Local
 export const AGENT_EMAIL = process.env.SEED_AGENT_EMAIL ?? "agent@safarcrm.local";
 export const AGENT_PASSWORD = process.env.SEED_AGENT_PASSWORD ?? "DemoAgent!2026";
 
+/**
+ * Saved sessions written once by `auth.setup.ts` and reused by every spec.
+ *
+ * The app rate-limits POST /api/auth/sign-in/email to 5 requests per 60s
+ * (`lib/auth/server.ts`). Signing in per test exceeded that budget and made
+ * every later spec fail with a 429 and a dashboard timeout, so only the specs
+ * that actually exercise sign-in (`auth`, `lockout`) log in for real.
+ */
+export const ADMIN_STATE = "tests/e2e/.auth/admin.json";
+export const AGENT_STATE = "tests/e2e/.auth/agent.json";
+
+/** Signed-out browser state, for specs that must start unauthenticated. */
+export const NO_STATE = { cookies: [], origins: [] };
+
 export async function login(
   page: Page,
   email: string = ADMIN_EMAIL,

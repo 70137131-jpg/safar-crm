@@ -15,6 +15,7 @@ type TxClient = typeof db | Prisma.TransactionClient;
 
 const INCLUDE_CUSTOMER = {
   customer: { select: { id: true, name: true, assignedAgentId: true } },
+  package: { select: { id: true, title: true, status: true } },
 } as const;
 
 const LIST_SELECT = {

@@ -1,16 +1,28 @@
 import { test, expect, type Page } from "@playwright/test";
-import { login } from "./helpers";
 
 /**
  * E2E tests for the documents module.
  *
  * Preconditions:
- *   - App running with a seeded ADMIN user (SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD).
- *   - R2 configured (R2_* env vars) and reachable — the upload/download tests
- *     exercise the real presigned PUT + gated download path.
+ *   - App running against a seeded database; the suite runs as ADMIN via the
+ *     session saved by `auth.setup.ts`.
+ *   - R2 configured (R2_* env vars) and reachable — these tests exercise the
+ *     real presigned PUT + gated download path, so they are skipped where R2
+ *     is not configured (e.g. the Preview Checks workflow, which sets no R2_*
+ *     vars). The permission + audit assertions are covered without R2 by
+ *     tests/unit/documents.service.test.ts.
+ *
+ * Locators are role/label based: the app's shadcn <Input>s derive their ids
+ * from `useId()`, so `#name`-style selectors match nothing.
  */
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+const R2_CONFIGURED = Boolean(
+  process.env.R2_ACCOUNT_ID &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET_DOCUMENTS,
+);
 
 const PDF_BYTES = Buffer.from("%PDF-1.4\n% E2E test document\n");
 
@@ -19,7 +31,8 @@ async function createCustomerAndOpenDocs(page: Page): Promise<string> {
   await page.goto("/customers/new");
   await page.getByLabel("Name").fill(name);
   await page.getByRole("button", { name: "Create Customer" }).click();
-  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}(?:[?#]|$)/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}$/, { timeout: 45_000 });
+  // The detail-page tabs are plain <button>s, not role="tab".
   await page.getByRole("button", { name: "Documents" }).click();
   return name;
 }
@@ -35,14 +48,12 @@ async function uploadPdf(page: Page, fileName: string) {
 
 test.describe("Documents Module", () => {
   test.skip(
-    !process.env.R2_ACCOUNT_ID ||
-      !process.env.R2_ACCESS_KEY_ID ||
-      !process.env.R2_SECRET_ACCESS_KEY,
-    "Document E2E requires configured R2 credentials.",
+    !R2_CONFIGURED,
+    "R2 is not configured (R2_* env vars) — these tests drive the real presigned PUT.",
   );
 
-  test.beforeEach(async ({ page }) => {
-    await login(page);
+  test.beforeEach(() => {
+    test.setTimeout(120_000);
   });
 
   test("upload a document and see it listed", async ({ page }) => {

@@ -1,12 +1,19 @@
 import { test, expect } from "@playwright/test";
-import { login, logout, ADMIN_EMAIL } from "./helpers";
+import { login, logout, ADMIN_EMAIL, NO_STATE } from "./helpers";
 
 /**
  * Authentication & session E2E.
  * Precondition: app running with the seeded admin (SEED_ADMIN_EMAIL/PASSWORD).
+ *
+ * Sign-in is rate-limited to 5 requests per 60s (`lib/auth/server.ts`), and the
+ * budget is shared per-IP across the whole suite. Only the two tests that
+ * genuinely exercise the sign-in endpoint post credentials here; the rest reuse
+ * the session saved by `auth.setup.ts`.
  */
 
-test.describe("Authentication", () => {
+test.describe("Authentication — sign-in", () => {
+  test.use({ storageState: NO_STATE });
+
   test("logs in with valid credentials and lands on the dashboard", async ({ page }) => {
     await login(page);
     await expect(page).toHaveURL(/\/dashboard/);
@@ -23,8 +30,16 @@ test.describe("Authentication", () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
+  test("redirects an unauthenticated visitor from a protected route to /login", async ({ page }) => {
+    await page.goto("/customers");
+    await expect(page).toHaveURL(/\/login/);
+  });
+});
+
+test.describe("Authentication — established session", () => {
+  // Uses the project's saved ADMIN session; no sign-in request is made.
   test("persists the session across reload and direct navigation", async ({ page }) => {
-    await login(page);
+    await page.goto("/dashboard");
     await page.reload();
     await expect(page).toHaveURL(/\/dashboard/);
     // Direct navigation to a protected route stays authenticated.
@@ -34,17 +49,11 @@ test.describe("Authentication", () => {
   });
 
   test("logs out and then blocks protected routes", async ({ page }) => {
-    await login(page);
+    await page.goto("/dashboard");
     await logout(page);
     await expect(page).toHaveURL(/\/login/);
     // After logout, a protected route redirects back to login.
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/login/);
-  });
-
-  test("redirects an unauthenticated visitor from a protected route to /login", async ({ page }) => {
-    await page.context().clearCookies();
-    await page.goto("/customers");
     await expect(page).toHaveURL(/\/login/);
   });
 });

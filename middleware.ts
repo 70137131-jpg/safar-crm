@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   "/bookings",
   "/payments",
   "/quotations",
+  "/invoices",
   "/reports",
   "/tasks",
   "/settings",

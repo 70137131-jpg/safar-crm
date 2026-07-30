@@ -153,8 +153,8 @@ export function QuotationForm({
             });
       if (result.ok) {
         toast.success(mode === "create" ? "Quotation created" : "Quotation updated");
+        // No router.refresh() after push — it cancels the pending navigation.
         router.push(`/quotations/${result.data.id}` as Route);
-        router.refresh();
       } else {
         toast.error(result.message);
         setError(result.message);

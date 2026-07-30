@@ -1,4 +1,5 @@
 import type { BookingStatus, CancelReason } from "@prisma/client";
+import type { BookingPackageSnapshot } from "@/modules/packages/packages.types";
 
 /**
  * Booking DTOs returned by the service. Money stays `bigint` paisa.
@@ -18,6 +19,8 @@ export interface BookingDTO {
   customer: BookingCustomerSummary | null;
   leadId: string | null;
   packageId: string | null;
+  package: { id: string; title: string; status: "ACTIVE" | "ARCHIVED" } | null;
+  packageSnapshot: BookingPackageSnapshot | null;
   travelDate: Date | null;
   status: BookingStatus;
   totalPricePaisa: bigint;

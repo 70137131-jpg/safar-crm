@@ -1,5 +1,6 @@
-// Keep this client-safe utility independent of the server-action error barrel,
-// which imports logging and environment validation intended for server code.
+// Deep import, not the `@/lib/errors` barrel: the barrel re-exports
+// server-action-wrapper → logger → env, which throws when evaluated in the
+// browser. Client components import `toWhatsAppLink` from here.
 import { ValidationError } from "@/lib/errors/app-error";
 
 /**

@@ -8,7 +8,8 @@ import { env } from "./env";
  * connections on every save. In serverless prod, each cold start gets a
  * fresh client backed by Neon's pooled connection.
  *
- * Use `DIRECT_DATABASE_URL` for migration scripts only (see prisma-direct.ts).
+ * `DIRECT_DATABASE_URL` is consumed by Prisma migrations via schema.prisma's
+ * `directUrl`; app code should use this pooled runtime client.
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 

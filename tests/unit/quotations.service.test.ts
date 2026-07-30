@@ -13,7 +13,7 @@ vi.mock("@/lib/audit", () => ({
   withAudit: vi.fn(async (_e: unknown, fn: (tx: unknown) => Promise<unknown>) => fn({})),
   logAudit: vi.fn(),
 }));
-vi.mock("@/lib/numbering/numbering", () => ({ nextDocumentNumber: vi.fn(async () => "QT-2026-000001") }));
+vi.mock("@/lib/numbering/numbering", () => ({ nextDocumentNumber: vi.fn(async () => "SQ-2026-000001") }));
 vi.mock("@/lib/email/outbox", () => ({ enqueueEmail: vi.fn() }));
 vi.mock("@/lib/storage/r2", () => ({ uploadFile: vi.fn() }));
 vi.mock("@/modules/quotations/quotation-pdf", () => ({ renderQuotationPdf: vi.fn(async () => Buffer.from("pdf")) }));
@@ -160,7 +160,7 @@ describe("updateQuotation", () => {
 describe("sendQuotation", () => {
   it("mints a number, stores the PDF, and enqueues a notification", async () => {
     mockRepo.findById.mockResolvedValue(quoteRecord({ status: "DRAFT" }));
-    mockRepo.updateWithOcc.mockResolvedValue(quoteRecord({ status: "SENT", quoteNumber: "QT-2026-000001" }));
+    mockRepo.updateWithOcc.mockResolvedValue(quoteRecord({ status: "SENT", quoteNumber: "SQ-2026-000001" }));
     const r2 = await import("@/lib/storage/r2");
     const outbox = await import("@/lib/email/outbox");
 

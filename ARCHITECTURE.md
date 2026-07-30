@@ -110,7 +110,7 @@ Decisions layered on top of `safar-crm-spec.md`. Any deviation must be discussed
 2. **Server actions** do five things in order: parse with Zod → load session → `can(...)` check → call service → return narrow DTO (`ActionResult<T>`).
 3. **Services** never read `cookies()` / `headers()`, never throw HTTP errors. They take a `UserContext`. They orchestrate repos + side effects (email, PDF, R2, audit).
 4. **Repositories** are pure data access. No business decisions, no audit calls, no email. One repository file per aggregate root.
-5. The Prisma client is a single shared singleton with the **pooled** Neon connection. A second non-pooled client exists only for migrations and admin scripts.
+5. The Prisma client is a single shared singleton with the **pooled** Neon connection. Prisma migrations use the non-pooled `DIRECT_DATABASE_URL` through `schema.prisma`'s `directUrl`.
 6. Any cross-module call goes service → service. Never UI → service of another module, never repo → repo of another module.
 
 ### Cross-cutting helpers
@@ -191,7 +191,7 @@ Decisions layered on top of `safar-crm-spec.md`. Any deviation must be discussed
 │   │   │       └── types.ts
 │   │   ├── db/
 │   │   │   ├── prisma.ts              # pooled singleton
-│   │   │   ├── prisma-direct.ts       # non-pooled for scripts
+│   │   │   ├── schema.prisma directUrl # non-pooled URL for migrations
 │   │   │   └── transaction.ts         # withTransaction helper
 │   │   ├── audit/
 │   │   │   ├── log.ts                 # writeAuditLog, withAudit
@@ -480,13 +480,15 @@ The policy module decides; call sites only express intent. A matrix unit test as
 
 ## 9. Background jobs (Vercel Cron)
 
-| Cron job                      | Schedule (PKT)   | Idempotency mechanism                                          |
+| Cron job                      | Schedule (UTC)   | Idempotency mechanism                                          |
 |-------------------------------|------------------|----------------------------------------------------------------|
-| sweep-reminders               | every 15 min     | `Task.reminderSentAt` + cooldown window                        |
-| sweep-passport-expiry         | daily 06:00      | partial unique index on `(customerId,type)` where status=OPEN  |
-| sweep-payment-due             | daily 07:00      | `Task` linked to `bookingId` with same constraint              |
-| sweep-quotation-expiry        | daily 08:00      | flips `Quotation.status = EXPIRED` past `validTill`            |
-| drain-email-outbox            | every 1 min      | row-level lock on `EmailOutbox(status=PENDING)`                |
+| sweep-document-expiry         | daily 01:00      | partial unique task indexes + duplicate checks                 |
+| sweep-passport-expiry         | daily 01:00      | partial unique index on `(customerId,type)` where status=OPEN  |
+| sweep-payment-due             | daily 02:00      | `Task` linked to `bookingId` with same constraint              |
+| sweep-quotation-expiry        | daily 03:00      | flips `Quotation.status = EXPIRED` past `validTill`            |
+| daily-summary                 | daily 04:00      | unique `EmailOutbox.dedupeKey` per user + PKT date             |
+| sweep-reminders               | daily 05:00      | `Task.reminderSentAt` + cooldown window                        |
+| drain-email-outbox            | daily 06:00      | row-level lock on `EmailOutbox(status=PENDING)`                |
 
 Each handler requires a `CRON_SECRET` header; non-matching requests return 401.
 

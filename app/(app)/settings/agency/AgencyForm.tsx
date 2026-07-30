@@ -27,6 +27,7 @@ const formSchema = z.object({
   agencyEmail: z.string().trim().email("Invalid email").or(z.literal("")).optional(),
   agencyAddress: z.string().trim().max(500).or(z.literal("")).optional(),
   agencyWebsite: z.string().trim().url("Must be a valid URL").or(z.literal("")).optional(),
+  taxRegistrationNo: z.string().trim().max(50).or(z.literal("")).optional(),
   taxPercentage: z.coerce.number().min(0).max(100),
   defaultTimezone: z.enum(TIMEZONES),
 });
@@ -49,6 +50,7 @@ export function AgencyForm({ settings }: { settings: SettingsDTO }) {
       agencyEmail: settings.agencyEmail ?? "",
       agencyAddress: settings.agencyAddress ?? "",
       agencyWebsite: settings.agencyWebsite ?? "",
+      taxRegistrationNo: settings.taxRegistrationNo ?? "",
       taxPercentage: settings.taxPercentage,
       defaultTimezone: (TIMEZONES as readonly string[]).includes(settings.defaultTimezone as any)
         ? (settings.defaultTimezone as (typeof TIMEZONES)[number])
@@ -151,6 +153,23 @@ export function AgencyForm({ settings }: { settings: SettingsDTO }) {
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="taxRegistrationNo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tax registration number (NTN)</FormLabel>
+              <FormControl>
+                <Input placeholder="1234567-8" {...field} />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                Printed on quotation and invoice PDFs. Leave blank to omit it.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField
             control={form.control}
@@ -165,13 +184,19 @@ export function AgencyForm({ settings }: { settings: SettingsDTO }) {
               </FormItem>
             )}
           />
-          <FormItem>
-            <FormLabel>Currency</FormLabel>
-            <FormControl>
-              <Input value="PKR" disabled readOnly />
-            </FormControl>
+          {/* Currency is a static read-only display, not a form field. It must
+              not use FormItem/FormLabel/FormControl: those call useFormField(),
+              which throws outside a <FormField> and took down the whole page. */}
+          <div className="space-y-2">
+            <label
+              htmlFor="agency-currency"
+              className="text-sm font-medium leading-none"
+            >
+              Currency
+            </label>
+            <Input id="agency-currency" value="PKR" disabled readOnly />
             <p className="text-xs text-muted-foreground">PKR only in v1.</p>
-          </FormItem>
+          </div>
           <FormField
             control={form.control}
             name="defaultTimezone"

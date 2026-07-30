@@ -108,8 +108,11 @@ export function CustomerForm({ mode, customer }: Props) {
         const result = await createCustomerAction(values);
         if (result.ok) {
           toast.success("Customer created");
+          // No router.refresh() here: calling it synchronously after push
+          // cancels the pending navigation and strands the user on the form.
+          // Dynamic routes have staleTimes.dynamic = 0, so the destination and
+          // the list are fetched fresh anyway.
           router.push(`/customers/${result.data.id}` as Route);
-          router.refresh();
         } else {
           toast.error(result.message);
         }
@@ -118,7 +121,6 @@ export function CustomerForm({ mode, customer }: Props) {
         if (result.ok) {
           toast.success("Customer updated");
           router.push(`/customers/${customer.id}` as Route);
-          router.refresh();
         } else {
           toast.error(result.message);
         }

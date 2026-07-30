@@ -19,8 +19,9 @@ export function TopNavbar({ userName, userRole, onMenuClick }: Props) {
     await signOut({
       fetchOptions: {
         onSuccess: () => {
+          // No router.refresh() after push — it cancels the pending navigation
+          // and leaves the user on the authenticated page after signing out.
           router.push("/login");
-          router.refresh();
         },
         onError: () => {
           toast.error("Sign out failed");
@@ -30,16 +31,20 @@ export function TopNavbar({ userName, userRole, onMenuClick }: Props) {
   }
 
   return (
-    <header className="bg-background/80 sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/85 px-4 backdrop-blur-xl md:px-6">
       <button
         type="button"
-        className="text-muted-foreground hover:bg-accent inline-flex h-9 w-9 items-center justify-center rounded-md md:hidden"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary md:hidden"
         aria-label="Open menu"
         onClick={onMenuClick}
       >
         <Menu className="h-5 w-5" />
       </button>
       <div className="flex-1 truncate text-sm font-semibold md:hidden">Safar CRM</div>
+      <div className="hidden min-w-0 flex-1 md:block">
+        <div className="text-sm font-semibold leading-none">Operations cockpit</div>
+        <div className="mt-1 text-xs text-muted-foreground">Customers, pipeline, bookings, and payments</div>
+      </div>
       <div className="flex items-center gap-3">
         <NotificationBell />
         <div className="hidden text-right md:block">
@@ -49,7 +54,7 @@ export function TopNavbar({ userName, userRole, onMenuClick }: Props) {
         <button
           type="button"
           onClick={handleLogout}
-          className="text-muted-foreground hover:bg-accent hover:text-foreground inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm"
+          className="inline-flex h-9 items-center gap-2 rounded-md border bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-secondary hover:text-foreground"
         >
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">Sign out</span>

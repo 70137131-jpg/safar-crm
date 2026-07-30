@@ -77,21 +77,23 @@ interface StatCardProps {
   value: string | number;
   icon: React.ReactNode;
   description: string;
+  accent: string;
 }
 
-function StatCard({ title, value, icon, description }: StatCardProps) {
+function StatCard({ title, value, icon, description, accent }: StatCardProps) {
   return (
-    <Card className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-      <CardContent className="p-6">
+    <Card className="overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <div className={accent} />
+      <CardContent className="p-5">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <div className="text-muted-foreground">{icon}</div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary text-primary">{icon}</div>
         </div>
-        <div className="mt-2">
-          <p className="text-3xl font-bold tracking-tight">
+        <div className="mt-4">
+          <p className="text-2xl font-semibold tracking-tight">
             {typeof value === "number" ? value.toLocaleString() : value}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+          <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{description}</p>
         </div>
       </CardContent>
     </Card>
@@ -108,30 +110,35 @@ export async function DashboardStats() {
         value={stats.activeEnquiries}
         icon={<Inbox className="h-5 w-5" />}
         description="Leads in open pipeline"
+        accent="h-1 bg-primary"
       />
       <StatCard
         title="Conversion"
         value={`${stats.conversionRate}%`}
         icon={<TrendingUp className="h-5 w-5" />}
         description="Leads booked or travelled"
+        accent="h-1 bg-info"
       />
       <StatCard
         title="Revenue collected"
         value={formatPKR(stats.revenue)}
         icon={<Wallet className="h-5 w-5" />}
         description="Payments received to date"
+        accent="h-1 bg-success"
       />
       <StatCard
         title="Upcoming travel"
         value={stats.upcomingTravel}
         icon={<Plane className="h-5 w-5" />}
         description="Confirmed, next 30 days"
+        accent="h-1 bg-accent"
       />
       <StatCard
         title="Expiring passports"
         value={stats.expiringPassports}
         icon={<AlertTriangle className="h-5 w-5" />}
         description="Within 180 days"
+        accent="h-1 bg-destructive"
       />
     </div>
   );

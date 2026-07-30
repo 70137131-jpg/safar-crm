@@ -1,10 +1,12 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { UserContext } from "@/lib/permissions/types";
 import { requirePermission } from "@/lib/permissions";
 import { ValidationError, NotFoundError, ConflictError } from "@/lib/errors";
 import { withAudit } from "@/lib/audit";
 import { nextDocumentNumber } from "@/lib/numbering/numbering";
 import * as customersService from "@/modules/customers/customers.service";
+import * as packagesService from "@/modules/packages/packages.service";
+import type { BookingPackageSnapshot } from "@/modules/packages/packages.types";
 import * as repo from "./bookings.repository";
 import {
   BOOKING_TRANSITIONS,
@@ -45,6 +47,8 @@ function toDTO(r: BookingRecord): BookingDTO {
     customer: r.customer,
     leadId: r.leadId,
     packageId: r.packageId,
+    package: r.package,
+    packageSnapshot: r.packageSnapshot as unknown as BookingPackageSnapshot | null,
     travelDate: r.travelDate,
     status: r.status,
     totalPricePaisa: r.totalPricePaisa,
@@ -159,8 +163,6 @@ export async function createBooking(
   // create a booking against another agent's customer.
   await customersService.getCustomer(user, input.customerId);
 
-  const totalPricePaisa = input.totalPrice ?? 0n;
-
   return withAudit(
     {
       ...auditContext(user),
@@ -170,6 +172,9 @@ export async function createBooking(
       entityIdFromResult: (r: BookingDTO) => r.id,
     },
     async (tx) => {
+      const selectedPackage = input.packageId
+        ? await packagesService.getBookablePackage(user, input.packageId, tx)
+        : null;
       const bookingNumber = await nextDocumentNumber(
         "booking",
         tx,
@@ -181,9 +186,12 @@ export async function createBooking(
           customer: { connect: { id: input.customerId } },
           ...(input.leadId ? { lead: { connect: { id: input.leadId } } } : {}),
           ...(input.packageId ? { package: { connect: { id: input.packageId } } } : {}),
+          ...(selectedPackage
+            ? { packageSnapshot: selectedPackage.snapshot as unknown as Prisma.InputJsonValue }
+            : {}),
           travelDate: input.travelDate ?? null,
           status: "PENDING",
-          totalPricePaisa,
+          totalPricePaisa: input.totalPrice ?? selectedPackage?.pricePaisa ?? 0n,
           notes: input.notes ?? null,
         },
         tx,
@@ -217,15 +225,6 @@ export async function updateBooking(
   }
 
   const before = toDTO(existing);
-  const data: Prisma.BookingUpdateInput = {
-    travelDate: input.travelDate ?? null,
-    notes: input.notes ?? null,
-    ...(input.totalPrice !== undefined ? { totalPricePaisa: input.totalPrice } : {}),
-    package: input.packageId
-      ? { connect: { id: input.packageId } }
-      : { disconnect: true },
-  };
-
   return withAudit(
     {
       ...auditContext(user),
@@ -234,7 +233,26 @@ export async function updateBooking(
       before,
       entityIdFromResult: (r: BookingDTO) => r.id,
     },
-    async (tx) => toDTO(await repo.update(id, data, tx)),
+    async (tx) => {
+      const packageChanged = input.packageId !== existing.packageId;
+      const selectedPackage = packageChanged && input.packageId
+        ? await packagesService.getBookablePackage(user, input.packageId, tx)
+        : null;
+      const data: Prisma.BookingUpdateInput = {
+        travelDate: input.travelDate ?? null,
+        notes: input.notes ?? null,
+        ...(input.totalPrice !== undefined ? { totalPricePaisa: input.totalPrice } : {}),
+        ...(packageChanged
+          ? input.packageId
+            ? {
+                package: { connect: { id: input.packageId } },
+                packageSnapshot: selectedPackage!.snapshot as unknown as Prisma.InputJsonValue,
+              }
+            : { package: { disconnect: true }, packageSnapshot: Prisma.JsonNull }
+          : {}),
+      };
+      return toDTO(await repo.update(id, data, tx));
+    },
   );
 }
 

@@ -220,3 +220,26 @@ export async function findDeleted(filters: {
 
   return { items, total };
 }
+
+export function createImportRun(
+  data: Prisma.ImportRunUncheckedCreateInput,
+  tx: TxClient = db,
+) {
+  return tx.importRun.create({ data });
+}
+
+export function updateImportRun(
+  id: string,
+  data: Prisma.ImportRunUpdateInput,
+  tx: TxClient = db,
+) {
+  return tx.importRun.update({ where: { id }, data });
+}
+
+export function listImportRuns(take = 20) {
+  return db.importRun.findMany({
+    take,
+    orderBy: { createdAt: "desc" },
+    include: { createdBy: { select: { id: true, name: true } } },
+  });
+}

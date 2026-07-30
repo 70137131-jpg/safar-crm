@@ -21,6 +21,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
       "/settings/lead-sources",
       "/settings/email",
       "/settings/notifications",
+      "/settings/packages",
     );
   }
   if (user && can(user, "settings:view")) allowed.push("/settings/roles");

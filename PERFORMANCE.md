@@ -54,12 +54,12 @@ Performance is solid for the target workload (one travel agency: thousands — n
 2. **`AuditLog` growth** — already planned for monthly partitioning past ~5M rows (BRIN index is in place; no action now).
 3. **Deep pagination** — `OFFSET`-based paging degrades on very large offsets. Not a concern at expected page counts; switch to keyset pagination only if needed.
 
-## 5. Reliability fix worth making — email outbox
+## 5. Email outbox reliability
 
 **File:** `lib/email/outbox.ts`
-`drainEmailOutbox` opens `db.$transaction` and calls `resend.emails.send()` (a network request) **inside** it, holding the row lock and a pooled DB connection for the duration of the HTTP call. On Neon pooled connections this can exhaust the small connection budget under load, and a slow Resend response ties up a connection.
+`drainEmailOutbox` now claims each row in a short transaction, sends through Resend outside the transaction, then finalizes with a short write. No pooled database connection is held during the network call.
 
-Recommendation (no architecture change): claim+mark the row in a short transaction, send **outside** the transaction, then update status in a second short transaction. Delivery stays at-least-once and idempotent; connections are released during the network call. Low urgency at current volume (batch size 25, every 5 min) but worth doing before heavy email use.
+Delivery remains at-least-once: a crash after Resend accepts a message but before finalization can cause a retry. Scheduled digests add a unique `dedupeKey` so repeated cron execution does not enqueue duplicates.
 
 > Note: the current design is at-least-once — if `send` succeeds but the commit fails, the email re-sends on the next drain. Acceptable for transactional mail; documented so it isn't mistaken for exactly-once.
 

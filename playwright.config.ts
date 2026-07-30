@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { ADMIN_STATE } from "./tests/e2e/helpers";
 
 // Base URL is overridable so the suite can target a dev server on any port
 // (e.g. PLAYWRIGHT_BASE_URL=http://localhost:3001). When set, we assume an
@@ -19,10 +20,34 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
-    { name: "webkit", use: { ...devices["Desktop Safari"] } },
-    { name: "mobile", use: { ...devices["iPhone 14"] } },
+    // Signs in once per role and saves the session (tests/e2e/.auth/*.json).
+    // Browser projects depend on it so specs start authenticated — sign-in is
+    // rate-limited to 5/60s, so a per-test login breaks the suite.
+    { name: "setup", testMatch: /.*\.setup\.ts/ },
+    {
+      name: "chromium",
+      testIgnore: /.*\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"], storageState: ADMIN_STATE },
+      dependencies: ["setup"],
+    },
+    {
+      name: "firefox",
+      testIgnore: /.*\.setup\.ts/,
+      use: { ...devices["Desktop Firefox"], storageState: ADMIN_STATE },
+      dependencies: ["setup"],
+    },
+    {
+      name: "webkit",
+      testIgnore: /.*\.setup\.ts/,
+      use: { ...devices["Desktop Safari"], storageState: ADMIN_STATE },
+      dependencies: ["setup"],
+    },
+    {
+      name: "mobile",
+      testIgnore: /.*\.setup\.ts/,
+      use: { ...devices["iPhone 14"], storageState: ADMIN_STATE },
+      dependencies: ["setup"],
+    },
   ],
   webServer: useExternalServer
     ? undefined

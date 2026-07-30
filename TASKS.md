@@ -30,7 +30,7 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [ ] Create Neon project; capture pooled + direct URLs into `.env.local`.
 - [ ] `pnpm add prisma @prisma/client`; init schema.
 - [ ] Add `src/lib/db/prisma.ts` (singleton, pooled).
-- [ ] Add `src/lib/db/prisma-direct.ts` (non-pooled, for scripts).
+- [x] Use `schema.prisma` `directUrl` with `DIRECT_DATABASE_URL` for non-pooled migrations.
 - [ ] Implement Phase 1 schema (see `ARCHITECTURE.md §7` and base spec §6) with all enums, FKs, partial unique indexes for soft delete.
 - [ ] `prisma migrate dev`; verify schema.
 - [ ] **Acceptance:** `prisma migrate deploy` succeeds against a fresh Neon branch.
@@ -102,9 +102,9 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 
 ### 1.3 Customer import (CSV/XLSX)
 - [x] CSV parser (`papaparse`); per-row Zod validation (in the action); chunked insert (200) with a **SAVEPOINT per row** so one bad row rolls back alone (`tests/unit/customers.service.test.ts`).
-- [~] `ImportRun` table; UI for status + error-report download. _(Error-report **download** done — rejected rows export to CSV in the result step. The persistent `ImportRun` history table is **not** built — it needs a Prisma/Neon migration; pending go-ahead.)_
+- [x] `ImportRun` table + persistent status/history UI + downloadable row-error reports.
 - [x] Limits: 25 MB file, 50k rows — enforced client-side and server-side (`MAX_IMPORT_ROWS`).
-- [~] XLSX import — **not** built (needs the `exceljs` dependency); CSV only for now, XLSX uploads are rejected with a clear message.
+- [x] XLSX import — first worksheet parsed in-browser; CSV remains supported without adding a spreadsheet dependency.
 - [x] **Acceptance:** A file with 100 valid + 5 malformed rows imports 100 and reports the 5 with line numbers (malformed rows fail Zod in the action and are reported with their row number).
 
 ### 1.4 Leads (kanban + list) & interactions
@@ -125,10 +125,12 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] Cron `sweep-passport-expiry` (daily): creates `Task(type=PASSPORT_EXPIRY)` per `Customer.passportExpiry` in window.
 - [x] Cron `sweep-payment-due` (daily): tasks for unpaid bookings with travel approaching.
 - [x] Email outbox + drain cron.
+- [x] Daily-summary cron; one deduplicated digest per active user and PKT date when enabled in Settings.
 - [x] **Acceptance:** Running the reminder cron twice in succession produces exactly one email per due task.
 
 ### 1.6 Bookings
 - [x] Schema + service + UI: create, edit, cancel.
+- [x] Package-template management; bookings retain an immutable `packageSnapshot` when a template is selected.
 - [x] Money via `Paisa` bigint; UI input/output in PKR.
 - [x] **Acceptance:** Cancellation preserves all payment rows; `Booking.status='CANCELLED'`.
 
@@ -145,6 +147,9 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done.
 - [x] Quotation email via Resend outbox; PDF stored in R2.
 - [x] Cron `sweep-quotation-expiry` (daily on the Vercel Hobby plan).
 - [x] **Acceptance:** 50 concurrent `SEND` operations produce 50 unique sequential numbers, no duplicates.
+
+### 1.8b Invoices
+- [x] Issue / mark paid / void from a booking, top-level invoice register, and authenticated PDF download.
 
 ### 1.9 Documents (basic)
 - [x] Schema + service + UI: upload (presigned PUT), list per customer/booking. `DocumentsPanel` is mounted on the customer detail "Documents" tab; it accepts `bookingId` for the booking detail page too.

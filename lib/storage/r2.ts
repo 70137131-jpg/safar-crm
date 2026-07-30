@@ -28,7 +28,7 @@ import { IntegrationError, ValidationError } from "@/lib/errors";
 
 // ─── Constraints (ARCHITECTURE.md §8) ────────────────────────────────────────
 
-export const ALLOWED_CONTENT_TYPES = [
+const ALLOWED_CONTENT_TYPES = [
   "application/pdf",
   "image/jpeg",
   "image/png",
@@ -38,13 +38,13 @@ export const ALLOWED_CONTENT_TYPES = [
   "audio/webm",
   "audio/ogg",
 ] as const;
-export type AllowedContentType = (typeof ALLOWED_CONTENT_TYPES)[number];
+type AllowedContentType = (typeof ALLOWED_CONTENT_TYPES)[number];
 
-export const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
-export const SIGNED_URL_TTL_SECONDS = 300; // 5 minutes
+const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
+const SIGNED_URL_TTL_SECONDS = 300; // 5 minutes
 const MAX_ATTEMPTS = 3;
 
-export function isAllowedContentType(value: string): value is AllowedContentType {
+function isAllowedContentType(value: string): value is AllowedContentType {
   return (ALLOWED_CONTENT_TYPES as readonly string[]).includes(value);
 }
 

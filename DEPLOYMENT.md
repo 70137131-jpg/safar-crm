@@ -76,15 +76,19 @@ Target platform: **Vercel** (Next.js 16) + **Neon** (PostgreSQL) + **Cloudflare 
    - `CRON_SECRET` (`openssl rand -hex 32`) — Vercel Cron auto-sends it as `Authorization: Bearer <CRON_SECRET>`
    - `LOG_LEVEL=info`, `NODE_ENV=production`
 3. **Migrations on deploy:** run `prisma migrate deploy` as a pre-build/deploy step (e.g. a Vercel build command `prisma migrate deploy && next build`, using `DIRECT_DATABASE_URL`). Never run `migrate dev` in CI.
-4. **Cron:** `vercel.json` already declares all six jobs:
+4. **Cron:** `vercel.json` declares all seven jobs:
    | Path | Schedule (UTC) |
    |------|----------------|
-   | `/api/cron/drain-email-outbox` | `*/5 * * * *` |
-   | `/api/cron/sweep-reminders` | `*/15 * * * *` |
+   | `/api/cron/drain-email-outbox` | `0 6 * * *` |
+   | `/api/cron/sweep-reminders` | `0 5 * * *` |
    | `/api/cron/sweep-document-expiry` | `0 1 * * *` |
    | `/api/cron/sweep-passport-expiry` | `0 1 * * *` |
    | `/api/cron/sweep-payment-due` | `0 2 * * *` |
    | `/api/cron/sweep-quotation-expiry` | `0 3 * * *` |
+   | `/api/cron/daily-summary` | `0 4 * * *` |
+
+   These daily schedules fit the Vercel Hobby-plan cron limit. Upgrade the plan
+   before changing the outbox/reminder jobs to sub-daily schedules.
 5. Region: set Vercel function region close to Neon to minimize DB latency.
 
 ## 6. Preview deployments
