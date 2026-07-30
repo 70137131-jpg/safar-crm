@@ -509,7 +509,7 @@ export async function runGeminiAgent(input: {
         type: "function_result",
         name: call.name,
         call_id: call.id,
-        result: [{ type: "text", text: JSON.stringify(result.data) }],
+        result: JSON.stringify(result.data ?? null),
       });
     }
   }

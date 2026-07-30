@@ -48,6 +48,9 @@ coverage
 playwright-report
 test-results
 
+# Generated repository maps
+graphify-out/
+
 # Misc
 *.tsbuildinfo
 .prisma/

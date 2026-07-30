@@ -74,6 +74,13 @@ describe("Gemini assistant adapter", () => {
     expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
       "x-goog-api-key": "test-google-key",
     });
+    const secondRequest = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as {
+      input: Array<{ type: string; result?: unknown }>;
+    };
+    const functionResult = secondRequest.input.find((step) => step.type === "function_result");
+    expect(functionResult?.result).toBe(
+      JSON.stringify([{ id: "lead-1", name: "Example" }]),
+    );
   });
 
   it("does not send unexpected internal tool errors back to the model", async () => {
