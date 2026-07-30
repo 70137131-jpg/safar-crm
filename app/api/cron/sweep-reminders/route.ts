@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Task reminder sweep (TASKS §1.5) — runs every ~15 min. Emails due OPEN tasks
+ * Task reminder sweep (TASKS §1.5) — runs daily on the current Hobby-plan schedule. Emails due OPEN tasks
  * via the outbox. Idempotent (reminderSentAt claim), so a double-fire produces
  * exactly one email per task.
  */

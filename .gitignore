@@ -58,3 +58,6 @@ test-results
 # OS
 Thumbs.db
 .env*
+
+# Playwright saved auth sessions (tests/e2e/auth.setup.ts)
+tests/e2e/.auth

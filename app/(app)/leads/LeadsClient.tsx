@@ -6,7 +6,7 @@ import { SearchInput } from "@/components/common/SearchInput";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "./KanbanBoard";
 import { LeadListClient } from "./LeadListClient";
-import { useUrlState } from "./useUrlFilters";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 
 type View = "kanban" | "list";
 

@@ -6,7 +6,7 @@
  * All exports use server-returned (already permission-filtered) data.
  */
 
-export function generateCSV(
+function generateCSV(
   headers: string[],
   rows: (string | number)[][],
 ): string {
@@ -25,7 +25,7 @@ export function generateCSV(
   return lines.join("\n");
 }
 
-export function generateExcel(
+function generateExcel(
   headers: string[],
   rows: (string | number)[][],
 ): string {
@@ -42,7 +42,7 @@ export function generateExcel(
   return lines.join("\n");
 }
 
-export function downloadFile(
+function downloadFile(
   content: string,
   filename: string,
   mimeType: string,

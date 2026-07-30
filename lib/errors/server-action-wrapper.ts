@@ -1,3 +1,9 @@
+// This module pulls in the logger (and through it, the Zod-validated server
+// env), so it must never reach a client bundle. Importing it from a client
+// component — directly or via the `@/lib/errors` barrel — now fails the build
+// instead of shipping a bundle that throws on module evaluation in the browser.
+// Vitest aliases `server-only` to a stub (see vitest.config.ts).
+import "server-only";
 import { ZodError } from "zod";
 import { unstable_rethrow } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";

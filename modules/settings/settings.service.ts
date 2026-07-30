@@ -29,6 +29,7 @@ const DEFAULTS: SettingsDTO = {
   agencyAddress: null,
   agencyWebsite: null,
   agencyLogoKey: null,
+  taxRegistrationNo: null,
   taxPercentage: 0,
   defaultCurrency: "PKR",
   defaultTimezone: "Asia/Karachi",
@@ -57,6 +58,7 @@ function toDTO(row: SettingsRow): SettingsDTO {
     agencyAddress: row.agencyAddress,
     agencyWebsite: row.agencyWebsite,
     agencyLogoKey: row.agencyLogoKey,
+    taxRegistrationNo: row.taxRegistrationNo,
     taxPercentage: row.defaultTaxBps / 100,
     defaultCurrency: row.defaultCurrency,
     defaultTimezone: row.defaultTimezone,
@@ -83,6 +85,7 @@ export interface NotificationConfig {
   notifyPassportExpiry: boolean;
   notifyPaymentDue: boolean;
   notifyOverdueTasks: boolean;
+  notifyDailySummary: boolean;
   passportExpiryWarnDays: number;
   paymentDueWarnDays: number;
   overdueTaskWarnDays: number;
@@ -98,6 +101,7 @@ export async function getNotificationConfig(): Promise<NotificationConfig> {
     notifyPassportExpiry: row?.notifyPassportExpiry ?? DEFAULTS.notifyPassportExpiry,
     notifyPaymentDue: row?.notifyPaymentDue ?? DEFAULTS.notifyPaymentDue,
     notifyOverdueTasks: row?.notifyOverdueTasks ?? DEFAULTS.notifyOverdueTasks,
+    notifyDailySummary: row?.notifyDailySummary ?? DEFAULTS.notifyDailySummary,
     passportExpiryWarnDays: row?.passportExpiryWarnDays ?? DEFAULTS.passportExpiryWarnDays,
     paymentDueWarnDays: row?.paymentDueWarnDays ?? DEFAULTS.paymentDueWarnDays,
     overdueTaskWarnDays: row?.overdueTaskWarnDays ?? DEFAULTS.overdueTaskWarnDays,
@@ -173,6 +177,7 @@ export async function updateAgency(
     agencyEmail: input.agencyEmail ?? null,
     agencyAddress: input.agencyAddress ?? null,
     agencyWebsite: input.agencyWebsite ?? null,
+    taxRegistrationNo: input.taxRegistrationNo ?? null,
     defaultTaxBps: Math.round(input.taxPercentage * 100),
     defaultCurrency: input.defaultCurrency,
     defaultTimezone: input.defaultTimezone,

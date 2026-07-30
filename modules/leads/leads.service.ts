@@ -180,7 +180,21 @@ export async function getLeadHistory(
 
 // ─── Writes ───────────────────────────────────────────────────────────────────
 
-function buildWritableData(input: CreateLeadInput | UpdateLeadInput) {
+/**
+ * Builds the **full** set of writable lead columns from a parsed input.
+ *
+ * ⚠️ Full-replace (PUT) semantics: every editable column is written on every
+ * call, so a field absent from `input` is set to `null`, NOT left unchanged.
+ * This is safe only because `createLeadSchema` / `updateLeadSchema` are
+ * complete-record schemas and the edit form always submits every field.
+ *
+ * Do NOT call the update path with a partial object expecting a patch — it
+ * will blank the omitted fields. If partial updates are ever needed, switch
+ * `updateLeadSchema` to emit `null` on cleared fields + `undefined` on absent
+ * ones, and pass values straight to Prisma (which treats `undefined` as
+ * "leave unchanged"). Until then, callers must pass a complete record.
+ */
+function buildFullWritableData(input: CreateLeadInput | UpdateLeadInput) {
   const phone = normalizePakistaniPhone(input.contactPhone);
   return {
     contactName: input.contactName,
@@ -205,7 +219,7 @@ export async function createLead(
   const assignedAgentId =
     input.assignedAgentId ?? (user.role === "AGENT" ? user.id : undefined);
 
-  const data = buildWritableData(input);
+  const data = buildFullWritableData(input);
 
   return withAudit(
     {
@@ -239,7 +253,7 @@ export async function updateLead(
   if (!existing) throw new NotFoundError("Lead not found");
   requirePermission(user, "leads:update", existing);
 
-  const data = buildWritableData(input);
+  const data = buildFullWritableData(input);
   const before = toDTO(existing);
 
   return withAudit(
@@ -316,12 +330,19 @@ export async function changeStatus(
           "This lead was changed by someone else. Refresh and try again.",
         );
       }
+      // History trail must keep the *structured* reason, not just the free
+      // note — reports group lost leads by `lostReason`. Combine the category
+      // with any note: "PRICE — found a cheaper package".
+      const statusReason =
+        target === "LOST"
+          ? [input.lostReason, input.lostNotes].filter(Boolean).join(" — ") || null
+          : null;
       await repo.createStatusEvent(
         {
           lead: { connect: { id } },
           fromStatus: existing.status,
           toStatus: target,
-          reason: input.lostNotes ?? null,
+          reason: statusReason,
           byUser: { connect: { id: user.id } },
         },
         tx,

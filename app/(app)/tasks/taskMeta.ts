@@ -33,7 +33,7 @@ export function isOverdue(dueDate: Date | string, status: TaskStatus): boolean {
   return new Date(dueDate).getTime() < Date.now();
 }
 
-export function formatTaskDate(d: Date | string | null | undefined): string {
+function formatTaskDate(d: Date | string | null | undefined): string {
   if (!d) return "—";
   return new Intl.DateTimeFormat("en-PK", {
     dateStyle: "medium",

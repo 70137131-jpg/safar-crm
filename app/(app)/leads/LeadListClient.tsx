@@ -43,7 +43,7 @@ import type { AssignableAgent } from "@/modules/users/users.types";
 import { LeadCard } from "./LeadCard";
 import { useLeadMutations, LostReasonDialog, ConvertDialog } from "./leadActions";
 import { LEAD_STATUS_META, LEAD_STATUS_ORDER, formatLeadDate } from "./leadMeta";
-import { useUrlState } from "./useUrlFilters";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 
 const PAGE_SIZE = 50;
 

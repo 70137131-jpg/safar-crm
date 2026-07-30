@@ -1,10 +1,11 @@
 import { TrendingUp } from "lucide-react";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/session";
 import { PKT_TZ, pktStartOfDay } from "@/lib/time/tz";
-import { dashboardScope } from "./scope";
-import { MonthlyTrendsChart, type MonthlyTrendPoint } from "./DashboardCharts";
+import { type MonthlyTrendPoint } from "./DashboardCharts";
+import { MonthlyTrendsChart } from "./DashboardChartsLazy";
 
 /**
  * Monthly bookings & revenue over the last 6 months. Server component:
@@ -23,9 +24,17 @@ function monthKey(d: Date): string {
   }).format(d);
 }
 
+interface MonthlyTrendRow {
+  month: string; // "YYYY-MM" in PKT
+  bookings: number;
+  revenuePaisa: bigint;
+}
+
 async function getMonthlyTrends(): Promise<MonthlyTrendPoint[]> {
   const user = await requireUser();
-  const scope = dashboardScope(user);
+  // AGENT sees only bookings whose customer is theirs — mirrors
+  // `dashboardScope(user).booking` (customer.assignedAgentId), expressed in SQL.
+  const agentId = user.role === "AGENT" ? user.id : null;
 
   const now = new Date();
   const buckets = Array.from({ length: MONTHS_BACK }, (_, i) => {
@@ -42,21 +51,32 @@ async function getMonthlyTrends(): Promise<MonthlyTrendPoint[]> {
     new Date(now.getFullYear(), now.getMonth() - (MONTHS_BACK - 1), 1),
   );
 
-  const rows = await db.booking.findMany({
-    where: {
-      deletedAt: null,
-      status: { not: "CANCELLED" },
-      createdAt: { gte: windowStart },
-      ...scope.booking,
-    },
-    select: { createdAt: true, totalPricePaisa: true },
-  });
+  // Aggregate in the DB (one GROUP BY per PKT month) instead of pulling every
+  // booking row and bucketing in JS. `createdAt` is timestamptz, so `AT TIME
+  // ZONE` yields the Karachi wall-clock month, matching the Intl-based
+  // `monthKey` buckets exactly.
+  const agentFilter = agentId
+    ? Prisma.sql`AND b."customerId" IN (SELECT id FROM "Customer" WHERE "assignedAgentId" = ${agentId}::uuid)`
+    : Prisma.empty;
+
+  const rows = await db.$queryRaw<MonthlyTrendRow[]>`
+    SELECT
+      to_char(b."createdAt" AT TIME ZONE ${PKT_TZ}, 'YYYY-MM') AS month,
+      COUNT(*)::int AS bookings,
+      COALESCE(SUM(b."totalPricePaisa"), 0)::bigint AS "revenuePaisa"
+    FROM "Booking" b
+    WHERE b."deletedAt" IS NULL
+      AND b.status <> 'CANCELLED'
+      AND b."createdAt" >= ${windowStart}
+      ${agentFilter}
+    GROUP BY 1
+  `;
 
   for (const r of rows) {
-    const bucket = byKey.get(monthKey(r.createdAt));
+    const bucket = byKey.get(r.month);
     if (!bucket) continue;
-    bucket.bookings += 1;
-    bucket.revenuePaisa += r.totalPricePaisa;
+    bucket.bookings = r.bookings;
+    bucket.revenuePaisa = r.revenuePaisa;
   }
 
   return buckets.map((b) => ({

@@ -1,4 +1,7 @@
-import { ValidationError } from "@/lib/errors";
+// Deep import, not the `@/lib/errors` barrel: the barrel re-exports
+// server-action-wrapper → logger → env, which throws when evaluated in the
+// browser. Client components import `toWhatsAppLink` from here.
+import { ValidationError } from "@/lib/errors/app-error";
 
 /**
  * Normalise a Pakistani phone number to E.164.

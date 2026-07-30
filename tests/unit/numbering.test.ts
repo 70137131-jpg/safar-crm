@@ -22,8 +22,8 @@ describe("nextDocumentNumber", () => {
     expect(await nextDocumentNumber("booking", txReturning(42n), date)).toBe("BK-2026-000042");
   });
 
-  it("formats a quotation number as QT-<year>-<6 digit pad>", async () => {
-    expect(await nextDocumentNumber("quote", txReturning(1n), date)).toBe("QT-2026-000001");
+  it("formats a quotation number as SQ-<year>-<6 digit pad>", async () => {
+    expect(await nextDocumentNumber("quote", txReturning(1n), date)).toBe("SQ-2026-000001");
   });
 
   it("formats an invoice number as INV-<year>-<6 digit pad>", async () => {
@@ -31,12 +31,12 @@ describe("nextDocumentNumber", () => {
   });
 
   it("does not truncate numbers larger than 6 digits", async () => {
-    expect(await nextDocumentNumber("quote", txReturning(1234567n), date)).toBe("QT-2026-1234567");
+    expect(await nextDocumentNumber("quote", txReturning(1234567n), date)).toBe("SQ-2026-1234567");
   });
 
   it("takes the year segment from the supplied date", async () => {
     expect(await nextDocumentNumber("quote", txReturning(5n), new Date("2027-01-01T00:00:00Z"))).toBe(
-      "QT-2027-000005",
+      "SQ-2027-000005",
     );
   });
 
@@ -52,8 +52,8 @@ describe("nextDocumentNumber", () => {
     const tx = { $queryRaw: vi.fn(async () => [{ nextval: ++n }]) } as never;
     const a = await nextDocumentNumber("quote", tx, date);
     const b = await nextDocumentNumber("quote", tx, date);
-    expect(a).toBe("QT-2026-000001");
-    expect(b).toBe("QT-2026-000002");
+    expect(a).toBe("SQ-2026-000001");
+    expect(b).toBe("SQ-2026-000002");
     expect(a).not.toBe(b);
   });
 });

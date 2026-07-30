@@ -13,6 +13,7 @@ import {
   updateBookingAction,
 } from "@/modules/bookings/bookings.actions";
 import type { BookingDTO } from "@/modules/bookings/bookings.types";
+import type { PackageDTO } from "@/modules/packages/packages.types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUnsavedChangesWarning } from "@/lib/hooks/use-unsaved-changes";
@@ -29,6 +30,7 @@ import { toDateInputValue } from "./bookingMeta";
 
 // Client-side mirror of the relevant parts of the server schemas.
 const formSchema = z.object({
+  packageId: z.string().optional(),
   travelDate: z.string().trim().or(z.literal("")).optional(),
   totalPrice: z
     .string()
@@ -50,9 +52,10 @@ interface Props {
   booking?: BookingDTO;
   /** Pre-selected customer when arriving from a customer page (?customerId=). */
   initialCustomer?: PickedCustomer | null;
+  packages: PackageDTO[];
 }
 
-export function BookingForm({ mode, booking, initialCustomer }: Props) {
+export function BookingForm({ mode, booking, initialCustomer, packages }: Props) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [customer, setCustomer] = useState<PickedCustomer | null>(
@@ -65,6 +68,7 @@ export function BookingForm({ mode, booking, initialCustomer }: Props) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      packageId: booking?.packageId ?? "",
       travelDate: toDateInputValue(booking?.travelDate),
       totalPrice:
         booking?.totalPricePaisa != null ? toPKR(booking.totalPricePaisa) : "",
@@ -86,14 +90,15 @@ export function BookingForm({ mode, booking, initialCustomer }: Props) {
       if (mode === "create") {
         const result = await createBookingAction({
           customerId: customer!.id,
+          packageId: values.packageId ?? "",
           travelDate: values.travelDate ?? "",
           totalPrice: values.totalPrice ?? "",
           notes: values.notes ?? "",
         });
         if (result.ok) {
           toast.success("Booking created");
+          // No router.refresh() after push — it cancels the pending navigation.
           router.push(`/bookings/${result.data.id}` as Route);
-          router.refresh();
         } else {
           toast.error(result.message);
         }
@@ -101,14 +106,12 @@ export function BookingForm({ mode, booking, initialCustomer }: Props) {
         const result = await updateBookingAction(booking.id, {
           travelDate: values.travelDate ?? "",
           totalPrice: values.totalPrice ?? "",
-          // Pass the existing package through so an edit never disconnects it.
-          packageId: booking.packageId ?? "",
+          packageId: values.packageId ?? "",
           notes: values.notes ?? "",
         });
         if (result.ok) {
           toast.success("Booking updated");
           router.push(`/bookings/${booking.id}` as Route);
-          router.refresh();
         } else {
           toast.error(result.message);
         }
@@ -149,6 +152,37 @@ export function BookingForm({ mode, booking, initialCustomer }: Props) {
             <p className="text-sm font-medium text-destructive">{customerError}</p>
           )}
         </div>
+
+        <FormField
+          control={form.control}
+          name="packageId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Package template</FormLabel>
+              <FormControl>
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  {...field}
+                  onChange={(event) => {
+                    field.onChange(event);
+                    const selected = packages.find((item) => item.id === event.target.value);
+                    if (selected && !form.getValues("totalPrice")) {
+                      form.setValue("totalPrice", toPKR(selected.pricePaisa), { shouldDirty: true });
+                    }
+                  }}
+                >
+                  <option value="">No package</option>
+                  {packages.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.title} · {item.destination}
+                    </option>
+                  ))}
+                </select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField

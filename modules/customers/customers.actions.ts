@@ -6,15 +6,15 @@ import {
   createCustomerSchema,
   updateCustomerSchema,
   listCustomersSchema,
-  searchCustomersSchema,
-  importCustomerRowSchema,
   MAX_IMPORT_ROWS,
+  customerImportRequestSchema,
 } from "./customers.schemas";
 import type {
   CustomerDTO,
   CustomerListItem,
   PaginatedResult,
   ImportResult,
+  ImportRunDTO,
 } from "./customers.types";
 import * as service from "./customers.service";
 
@@ -95,49 +95,25 @@ export const listDeletedCustomersAction = serverAction(
   },
 );
 
-export const searchCustomersAction = serverAction(
-  "customers.search",
-  async (
-    params: Record<string, unknown>,
-  ): Promise<PaginatedResult<CustomerListItem>> => {
-    const user = await requireUser();
-    const input = searchCustomersSchema.parse(params);
-    return service.searchCustomers(user, input);
-  },
-);
-
 export const importCustomersAction = serverAction(
   "customers.import",
-  async (rawRows: Record<string, unknown>[]): Promise<ImportResult> => {
+  async (input: { fileName: string; fileType: string; rows: Record<string, unknown>[] }): Promise<ImportResult> => {
     const user = await requireUser();
+    const request = customerImportRequestSchema.parse(input);
+    const rawRows = request.rows;
     if (rawRows.length > MAX_IMPORT_ROWS) {
       throw new ValidationError(
         `Import exceeds the ${MAX_IMPORT_ROWS.toLocaleString()}-row limit. Split the file and try again.`,
       );
     }
-    // Validate each row individually — collect valid ones
-    const validRows = [];
-    const errors: ImportResult["errors"] = [];
-    for (let i = 0; i < rawRows.length; i++) {
-      const parsed = importCustomerRowSchema.safeParse(rawRows[i]);
-      if (parsed.success) {
-        validRows.push(parsed.data);
-      } else {
-        errors.push({
-          row: i + 1,
-          success: false,
-          error: parsed.error.issues.map((iss) => iss.message).join("; "),
-          name: (rawRows[i] as Record<string, string>)?.name ?? `Row ${i + 1}`,
-        });
-      }
-    }
-    const result = await service.importCustomers(user, validRows);
-    // Merge validation errors with import errors
-    return {
-      totalRows: rawRows.length,
-      successCount: result.successCount,
-      errorCount: result.errorCount + errors.length,
-      errors: [...errors, ...result.errors],
-    };
+    return service.importCustomers(user, rawRows, {
+      fileName: request.fileName,
+      fileType: request.fileType,
+    });
   },
+);
+
+export const listImportRunsAction = serverAction(
+  "customers.importRuns",
+  async (): Promise<ImportRunDTO[]> => service.listImportRuns(await requireUser()),
 );

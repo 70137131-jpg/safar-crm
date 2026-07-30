@@ -8,7 +8,6 @@ import {
   listLeadsSchema,
   kanbanLeadsSchema,
   changeLeadStatusSchema,
-  assignLeadSchema,
   convertLeadSchema,
 } from "./leads.schemas";
 import type {
@@ -74,27 +73,11 @@ export const changeLeadStatusAction = serverAction(
   },
 );
 
-export const assignLeadAction = serverAction(
-  "leads.assign",
-  async (id: string, formData: Record<string, unknown>): Promise<LeadDTO> => {
-    const user = await requireUser();
-    return service.assignLead(user, id, assignLeadSchema.parse(formData));
-  },
-);
-
 export const deleteLeadAction = serverAction(
   "leads.delete",
   async (id: string): Promise<LeadDTO> => {
     const user = await requireUser();
     return service.deleteLead(user, id);
-  },
-);
-
-export const restoreLeadAction = serverAction(
-  "leads.restore",
-  async (id: string): Promise<LeadDTO> => {
-    const user = await requireUser();
-    return service.restoreLead(user, id);
   },
 );
 

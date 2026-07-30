@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { getCustomerAction } from "@/modules/customers/customers.actions";
+import { listActivePackagesAction } from "@/modules/packages/packages.actions";
 import { BookingForm } from "../BookingForm";
 import type { PickedCustomer } from "../CustomerCombobox";
 
@@ -26,6 +27,8 @@ export default async function NewBookingPage({ searchParams }: Props) {
       initialCustomer = { id: result.data.id, name: result.data.name };
     }
   }
+  const packagesResult = await listActivePackagesAction();
+  const packages = packagesResult.ok ? packagesResult.data : [];
 
   return (
     <PageWrapper>
@@ -39,7 +42,7 @@ export default async function NewBookingPage({ searchParams }: Props) {
         <h1 className="mb-6 text-xl font-semibold tracking-tight">
           Create Booking
         </h1>
-        <BookingForm mode="create" initialCustomer={initialCustomer} />
+        <BookingForm mode="create" initialCustomer={initialCustomer} packages={packages} />
       </div>
     </PageWrapper>
   );

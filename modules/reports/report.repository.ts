@@ -107,7 +107,6 @@ export async function getMonthlyCollections(filters: ReportFilters): Promise<Mon
       to_char(p."paidAt", 'YYYY-MM') AS month,
       COALESCE(SUM(p."amountPaisa"), 0)::bigint AS value
     FROM "Payment" p
-    ${filters.agentId ? Prisma.empty : Prisma.empty}
     ${agentJoin}
     WHERE p.status = 'PAID'
       AND p."amountPaisa" > 0

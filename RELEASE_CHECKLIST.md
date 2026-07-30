@@ -12,7 +12,7 @@ Run the seeded staging env first: `pnpm seed` (creates ADMIN + demo AGENT/MANAGE
 - [ ] `pnpm prisma validate` ✅
 - [ ] `pnpm lint` (no errors)
 - [ ] `pnpm typecheck` ✅ (verified this session)
-- [ ] `pnpm exec vitest run` → **246 passed** ✅ (verified this session)
+- [ ] `pnpm exec vitest run` → **284 passed, 1 DB-only test skipped** ✅
 - [ ] `pnpm build` ✅ (verified this session)
 - [ ] `pnpm test:e2e` against seeded staging (auth/customers/documents green; expand per TESTING.md §6)
 
@@ -39,7 +39,7 @@ Run the seeded staging env first: `pnpm seed` (creates ADMIN + demo AGENT/MANAGE
 ## CUSTOMERS
 - [ ] 🟢 CRUD (create/edit/view) — AGENT auto-assigned as owner
 - [ ] 🟢 Search by name/phone/email/passport-last4
-- [ ] 🟢 Import CSV — 100 valid + malformed rows: valid imported, errors reported with line numbers
+- [ ] 🟢 Import CSV/XLSX — valid rows import, errors persist with line numbers and downloadable reports
 - [ ] 🟢 Soft delete & Restore (ADMIN/MANAGER) — deleted excluded from lists; restore checks dup email/phone
 - [ ] ✅ Ownership — AGENT cannot open another agent's customer by direct ID (unit-verified)
 

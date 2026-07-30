@@ -9,6 +9,8 @@ export interface SettingsDTO {
   agencyAddress: string | null;
   agencyWebsite: string | null;
   agencyLogoKey: string | null;
+  /** NTN / STRN printed on quotation and invoice PDFs. */
+  taxRegistrationNo: string | null;
   taxPercentage: number;
   defaultCurrency: string;
   defaultTimezone: string;

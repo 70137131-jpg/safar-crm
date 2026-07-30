@@ -94,7 +94,7 @@ E2E breadth is the gap. None of the missing specs were stubbed-in unrun, by desi
 2. **Leads E2E** — create → assign → status transitions → convert to customer/booking → lost flow → interaction logging. Kanban drag/drop is the trickiest; assert status via the API/list if DnD proves flaky.
 3. **Payments E2E** — record partial, record full, attempt overpayment (expect rejection), refund; assert `balancePaisa`.
 4. **Bookings E2E** — create, status transitions, cancel (reason required), travel-date validation.
-5. **Quotations E2E** — draft → send (PDF + outbox row) → accept/expire; assert `QT/SQ` numbering.
+5. **Quotations E2E** — draft → send (PDF + outbox row) → accept/expire; assert `SQ` numbering.
 6. **Mobile E2E** — the `mobile` Playwright project (iPhone 14) already runs all specs; add explicit assertions at 390/430/768px: tables collapse to cards, dialogs/drawers open, no horizontal overflow, touch targets ≥ 44px.
 7. **Cron E2E/integration** — extend `cron-routes` with a DB-backed idempotency test (run a sweep twice, assert one task/email created) using a test DB branch.
 

@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { login } from "./helpers";
 
 /**
  * Critical path (TASKS.md §1.13): create a lead → convert it to a booking →
@@ -21,15 +20,19 @@ import { login } from "./helpers";
 test("lead → convert → booking → payment", async ({ page }) => {
   test.setTimeout(240_000);
   const NAV = 45_000;
-  const name = `E2E Flow ${Date.now()}`;
+  const stamp = Date.now();
+  const name = `E2E Flow ${stamp}`;
+  // Conversion creates a Customer, and phone is unique per customer — the
+  // seed's demo customer already holds +923001234567.
+  const phone = `0300${String(stamp).slice(-7)}`;
 
-  await login(page); // seeded ADMIN
+  // Runs as the seeded ADMIN via the session from `auth.setup.ts`.
 
   // 1. Create the lead (retry the submit until the page is hydrated and navigates).
   await page.goto("/leads/new");
   await expect(async () => {
     await page.getByLabel("Contact Name").fill(name);
-    await page.getByLabel("Phone").fill("03001234567");
+    await page.getByLabel("Phone").fill(phone);
     await page.getByLabel("Budget (PKR)").fill("500000");
     await page.getByRole("button", { name: "Create Lead" }).click();
     await expect(page).toHaveURL(/\/leads\/[0-9a-f-]{36}/, { timeout: 20_000 });
@@ -39,7 +42,9 @@ test("lead → convert → booking → payment", async ({ page }) => {
   //    data-driven row confirms the client list has hydrated + fetched.
   await page.goto(`/leads?view=list&q=${encodeURIComponent(name)}`);
   await expect(page.getByRole("link", { name })).toBeVisible({ timeout: NAV });
-  const statusSelect = page.getByLabel("Change status");
+  // The list renders both a desktop-table select and a `md:hidden` card select;
+  // only one is visible at a given viewport.
+  const statusSelect = page.getByLabel("Change status").filter({ visible: true });
   await expect(async () => {
     await statusSelect.selectOption("BOOKED");
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });

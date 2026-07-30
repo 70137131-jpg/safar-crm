@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useTransition, useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
   LayoutDashboard,
   DollarSign,
@@ -12,17 +13,41 @@ import {
   ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
 import { ReportFilters } from "./components/ReportFilters";
 import { ExportButton } from "./components/ExportButton";
 import { OverviewCards } from "./components/OverviewCards";
-import { RevenueSection } from "./components/RevenueSection";
-import { LeadFunnelSection } from "./components/LeadFunnelSection";
 import { AgentSection } from "./components/AgentSection";
-import { DestinationSection } from "./components/DestinationSection";
-import { LeadSourceSection } from "./components/LeadSourceSection";
 import { PaymentsSection } from "./components/PaymentsSection";
-import { TaskSection } from "./components/TaskSection";
 import type { ReportType } from "@/modules/reports/report.types";
+
+/**
+ * Recharts-heavy sections are code-split so the library loads only when its tab
+ * is first opened, keeping the initial reports bundle small. `ssr: false` is
+ * fine here — ReportsClient is already a Client Component. (AgentSection and
+ * PaymentsSection are table-only and stay statically imported.)
+ */
+const sectionLoading = () => <LoadingSkeleton className="h-[400px] w-full" />;
+const RevenueSection = dynamic(
+  () => import("./components/RevenueSection").then((m) => m.RevenueSection),
+  { ssr: false, loading: sectionLoading },
+);
+const LeadFunnelSection = dynamic(
+  () => import("./components/LeadFunnelSection").then((m) => m.LeadFunnelSection),
+  { ssr: false, loading: sectionLoading },
+);
+const DestinationSection = dynamic(
+  () => import("./components/DestinationSection").then((m) => m.DestinationSection),
+  { ssr: false, loading: sectionLoading },
+);
+const LeadSourceSection = dynamic(
+  () => import("./components/LeadSourceSection").then((m) => m.LeadSourceSection),
+  { ssr: false, loading: sectionLoading },
+);
+const TaskSection = dynamic(
+  () => import("./components/TaskSection").then((m) => m.TaskSection),
+  { ssr: false, loading: sectionLoading },
+);
 
 const TABS = [
   { id: "overview" as const, label: "Overview", icon: LayoutDashboard },

@@ -25,7 +25,7 @@ export type DocumentNumberKind = "booking" | "quote" | "invoice";
 
 const PREFIX: Record<DocumentNumberKind, string> = {
   booking: "BK",
-  quote: "QT",
+  quote: "SQ",
   invoice: "INV",
 };
 
