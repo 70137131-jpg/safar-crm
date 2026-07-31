@@ -1,0 +1,109 @@
+name: Security
+
+# Static security scanning, additive to the CI quality gate (ci.yml):
+#   - dependency-audit : pnpm audit, fails on high/critical prod advisories
+#   - semgrep          : curated project rules (blocking) + community packs
+#                        (advisory) covering TS/React/Next/secrets
+#   - secret-scan      : gitleaks over the working tree + full history
+#
+# extraction.md §6 ("Automated security scanning in CI") is the source of this
+# workflow. None of these are *required* status checks until an admin adds
+# them to branch protection, so they cannot block the existing merge flow.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Weekly, Monday 06:27 UTC — re-scans dependencies against newly disclosed
+    # advisories even when no code changes.
+    - cron: "27 6 * * 1"
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: Dependency audit (high+)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Blocking: fails on high/critical advisories in production deps. Known
+      # transitive dev-tooling advisories are allowlisted in
+      # pnpm-workspace.yaml (auditConfig.ignoreGhsas) with justifications.
+      - name: Audit production dependencies (fail on high/critical)
+        run: pnpm audit --prod --audit-level high
+
+      # Advisory: full picture (incl. moderate/low) for visibility, never blocks.
+      - name: Full advisory report (non-blocking)
+        if: always()
+        run: pnpm audit --prod || true
+
+  semgrep:
+    name: Semgrep (SAST)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      # Blocking: only ERROR-severity rules from our curated config can fail the
+      # build. These are verified to have zero matches on the current tree.
+      - name: Curated rules (blocking)
+        run: semgrep scan --config .semgrep.yml --severity ERROR --error --metrics off
+
+      # Advisory: curated WARNINGs + community rulesets. Never blocks; surfaces
+      # findings in the job log for triage.
+      - name: Curated + community rulesets (advisory)
+        if: always()
+        run: |
+          semgrep scan \
+            --config .semgrep.yml \
+            --config p/typescript \
+            --config p/react \
+            --config p/nextjs \
+            --config p/javascript \
+            --config p/secrets \
+            --metrics off || true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so gitleaks inspects every commit, not just the tip.
+          fetch-depth: 0
+
+      # Pinned release binary rather than gitleaks-action@v2, which requires a
+      # paid license for GitHub organizations. The binary is free for any use.
+      - name: Install gitleaks
+        run: |
+          GLV=8.21.2
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GLV}/gitleaks_${GLV}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      # Blocking: a detected secret fails the job. Verified clean against the
+      # full git history in CI before enabling (run on PR #5). The allowlist for
+      # committed placeholders / fake CI creds lives in .gitleaks.toml.
+      - name: Scan working tree + git history
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --no-banner --verbose --exit-code 1

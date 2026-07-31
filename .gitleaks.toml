@@ -1,0 +1,33 @@
+# Gitleaks config for the secret-scan job in .github/workflows/security.yml.
+#
+# Extends the built-in ruleset and adds allowlists for material that is
+# intentionally committed and is NOT a real secret: the placeholder values in
+# .env.example and the deliberately-fake credentials wired into the CI
+# workflows (lib/env.ts validates env at import time, so vitest/next build need
+# parseable — not real — values).
+#
+# Real secrets live only in untracked .env / Vercel project settings and are
+# never committed (verified: .env is gitignored and absent from git history).
+
+title = "Safar CRM gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Committed non-secret material (placeholders, lockfiles, fake CI creds)"
+
+# Files that are committed on purpose and contain only placeholders / hashes.
+paths = [
+  '''\.env\.example$''',
+  '''pnpm-lock\.yaml$''',
+]
+
+# Deliberately-fake values used to make CI boot. Keep these in sync with the
+# env: blocks in .github/workflows/*.yml.
+regexes = [
+  '''ci-better-auth-secret-[0-9a-f]+''',
+  '''ci-cron-secret''',
+  '''ci:ci@localhost''',
+  '''USER:PASSWORD@HOST''',
+]

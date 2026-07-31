@@ -13,6 +13,18 @@ const config = [
       // pattern app-wide; keep it visible as a warning rather than failing CI or
       // forcing a churny refactor of working components.
       "react-hooks/set-state-in-effect": "warn",
+      // Ban dangerouslySetInnerHTML outright (stored-XSS vector). If a rich-HTML
+      // surface is ever added, route it through a single reviewed <SafeHtml>
+      // sanitizer boundary and disable this rule on that line only. Mirrors the
+      // Semgrep rule `safar-no-dangerously-set-inner-html`. See extraction.md §5.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message:
+            "dangerouslySetInnerHTML is banned (XSS risk). Render plain text, or use a reviewed <SafeHtml> sanitizer boundary and disable this rule on that line only.",
+        },
+      ],
     },
   },
   {

@@ -1,0 +1,88 @@
+# Curated, project-specific Semgrep rules for Safar CRM.
+#
+# These encode the security invariants from CLAUDE.md / ARCHITECTURE.md and the
+# gaps called out in extraction.md §5 (XSS-safe rendering) and §6 (security
+# scanning in CI). They run alongside the community packs (p/typescript,
+# p/react, p/nextjs, p/javascript, p/secrets) in .github/workflows/security.yml.
+#
+# Severity contract:
+#   ERROR   -> blocking gate (the security workflow fails the build on a match)
+#   WARNING -> advisory (reported, never blocks) — used for patterns the team
+#              has deliberately adopted (e.g. dashboard aggregate reads) so the
+#              finding stays visible without breaking an in-flight branch.
+rules:
+  - id: safar-no-dangerously-set-inner-html
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      dangerouslySetInnerHTML bypasses React's escaping and is a stored-XSS
+      vector. Render plain text instead, or route untrusted HTML through a
+      single reviewed <SafeHtml> sanitizer boundary (server-side sanitize on
+      write + client-side sanitize on render). If a reviewed boundary genuinely
+      needs it, annotate that one line with `// nosemgrep`. See extraction.md §5.
+    metadata:
+      category: security
+      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation (XSS)"
+      references:
+        - https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html
+    pattern: dangerouslySetInnerHTML={...}
+
+  - id: safar-no-raw-sql-interpolation
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Raw SQL passed to $queryRawUnsafe/$executeRawUnsafe with anything other
+      than a constant string literal risks SQL injection. Use Prisma's tagged
+      templates ($queryRaw / $executeRaw), which parameterize values. A static
+      literal such as $executeRawUnsafe("SAVEPOINT import_row") is fine and is
+      not flagged.
+    metadata:
+      category: security
+      cwe: "CWE-89: SQL Injection"
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$queryRawUnsafe($ARG, ...)
+          - pattern: $DB.$executeRawUnsafe($ARG, ...)
+      - pattern-not: $DB.$queryRawUnsafe("...", ...)
+      - pattern-not: $DB.$executeRawUnsafe("...", ...)
+
+  - id: safar-ui-direct-prisma-access
+    languages: [typescript, javascript]
+    severity: WARNING
+    paths:
+      include:
+        - "app/**"
+      exclude:
+        - "app/api/healthz/**"
+    message: >-
+      A route handler / server component imports the Prisma client (@/lib/db)
+      directly, bypassing the service + permission layer (requirePermission /
+      can). Confirm this surface enforces the same role + ownership scoping the
+      service would, or route the read through a module service. (extraction.md
+      §6; CLAUDE.md "Authorization inside services, not middleware".)
+    metadata:
+      category: security
+      references:
+        - ARCHITECTURE.md
+    pattern: import { ... } from "@/lib/db"
+
+  - id: safar-no-console-in-service-layer
+    languages: [typescript, javascript]
+    severity: WARNING
+    paths:
+      include:
+        - "modules/**"
+        - "lib/**"
+      exclude:
+        - "lib/logger/**"
+    message: >-
+      Use the Pino logger (@/lib/logger) instead of console.* in the
+      service/data layer. console output skips PII redaction (redactPII) and
+      structured logging, risking passport/DOB leakage into stdout.
+      (extraction.md §6; CLAUDE.md PII rules.)
+    metadata:
+      category: security
+    pattern-either:
+      - pattern: console.log(...)
+      - pattern: console.info(...)
+      - pattern: console.debug(...)
