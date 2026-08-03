@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Workflow } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ChartWrapper, StatCard } from "./ChartWrapper";
 import { getLeadFunnelAction } from "@/modules/reports/report.actions";
 import type { LeadFunnelReport, LeadFunnelStage } from "@/modules/reports/report.types";
@@ -50,11 +51,9 @@ export function LeadFunnelSection({ filters }: Props) {
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-lg border bg-card p-5">
-              <div className="animate-pulse space-y-2">
-                <div className="h-3 w-20 rounded bg-muted" />
-                <div className="h-7 w-16 rounded bg-muted" />
-              </div>
+            <div key={i} className="bg-card rounded-lg border p-5 shadow-sm">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="mt-2 h-8 w-16" />
             </div>
           ))}
         </div>

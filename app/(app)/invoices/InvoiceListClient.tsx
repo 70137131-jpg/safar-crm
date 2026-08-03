@@ -10,6 +10,7 @@ import type { InvoiceListItem } from "@/modules/invoices/invoices.types";
 import { formatPKR } from "@/lib/money/paisa";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RowListSkeleton } from "@/components/common/LoadingSkeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
 export function InvoiceListClient({ caps }: { caps: { canUpdate: boolean; canVoid: boolean } }) {
@@ -52,7 +53,7 @@ export function InvoiceListClient({ caps }: { caps: { canUpdate: boolean; canVoi
       <select className="h-9 rounded-md border bg-background px-3 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
         <option value="">All statuses</option><option value="ISSUED">Issued</option><option value="PAID">Paid</option><option value="CANCELLED">Cancelled</option>
       </select>
-      {loading ? <div className="h-32 animate-pulse rounded-lg bg-muted" /> : items.length === 0 ? (
+      {loading ? <RowListSkeleton rows={4} /> : items.length === 0 ? (
         <EmptyState icon={<ReceiptText className="h-8 w-8" />} title="No invoices" description="Invoices can be issued from a booking's Invoices tab." />
       ) : (
         <div className="space-y-2">

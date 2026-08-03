@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CardListSkeleton } from "@/components/common/LoadingSkeleton";
 import {
   listDeletedCustomersAction,
   restoreCustomerAction,
@@ -63,11 +63,7 @@ export function TrashClient() {
 
   if (loading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 w-full" />
-        ))}
-      </div>
+      <CardListSkeleton rows={3} />
     );
   }
 

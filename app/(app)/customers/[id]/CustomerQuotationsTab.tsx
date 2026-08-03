@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { formatPKR } from "@/lib/money/paisa";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RowListSkeleton } from "@/components/common/LoadingSkeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { listQuotationsAction } from "@/modules/quotations/quotations.actions";
 import type { QuotationListItem } from "@/modules/quotations/quotations.types";
@@ -50,11 +51,7 @@ export function CustomerQuotationsTab({
 
   if (loading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="h-14 animate-pulse rounded-md bg-muted" />
-        ))}
-      </div>
+      <RowListSkeleton rows={2} />
     );
   }
 

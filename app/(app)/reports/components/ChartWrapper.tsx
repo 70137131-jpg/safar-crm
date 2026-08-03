@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -23,9 +24,9 @@ export function ChartWrapper({
   if (loading) {
     return (
       <div className={cn("rounded-lg border bg-card p-6", className)}>
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 w-32 rounded bg-muted" />
-          <div className="h-[260px] rounded bg-muted/60" />
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-[260px]" />
         </div>
       </div>
     );

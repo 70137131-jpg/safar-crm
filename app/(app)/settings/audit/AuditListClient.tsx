@@ -204,7 +204,7 @@ export function AuditListClient() {
 
       <div className="mt-3">
         {loading ? (
-          <TableSkeleton columns={5} rows={8} />
+          <TableSkeleton columns={5} rows={8} leading actions={false} />
         ) : data.length === 0 ? (
           <EmptyState
             title="No audit entries"

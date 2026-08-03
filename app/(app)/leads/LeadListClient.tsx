@@ -346,7 +346,7 @@ export function LeadListClient({
 
       <div className="mt-3">
         {loading ? (
-          <TableSkeleton columns={7} rows={6} />
+          <TableSkeleton columns={9} rows={6} leading />
         ) : data.length === 0 ? (
           <EmptyState
             title="No leads found"

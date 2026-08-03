@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Users, Trophy, Target } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ChartWrapper } from "./ChartWrapper";
 import { getAgentPerformanceAction } from "@/modules/reports/report.actions";
 import type { AgentPerformanceReport } from "@/modules/reports/report.types";
@@ -39,11 +40,9 @@ export function AgentSection({ filters }: Props) {
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="rounded-lg border bg-card p-5">
-              <div className="animate-pulse space-y-2">
-                <div className="h-3 w-24 rounded bg-muted" />
-                <div className="h-7 w-32 rounded bg-muted" />
-              </div>
+            <div key={i} className="bg-card rounded-lg border p-5 shadow-sm">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-2 h-8 w-32" />
             </div>
           ))}
         </div>

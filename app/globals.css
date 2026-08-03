@@ -33,6 +33,15 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Skeleton shimmer. One light beam sweeps the viewport left to right, so
+       every placeholder on screen is lit by the same pass. See `.skeleton`. */
+    --skeleton-base: 0 0% 89%;
+    --skeleton-sheen: 0 0% 100%;
+    --skeleton-sheen-opacity: 0.95;
+    --skeleton-beam: 28vw;
+    --skeleton-tilt: 100deg;
+    --skeleton-sweep: 2.2s;
   }
 
   .dark {
@@ -66,6 +75,9 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    --skeleton-base: 0 0% 17%;
+    --skeleton-sheen-opacity: 0.12;
   }
 }
 
@@ -115,5 +127,48 @@
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
+  }
+}
+
+/* ─── Skeleton shimmer ──────────────────────────────────────────────────────
+   A single slightly-slanted band of light travels left to right across the
+   viewport. `background-attachment: fixed` anchors the gradient to the
+   viewport rather than to each element, so every `.skeleton` on the page
+   shares one coordinate space and the beam reads as one continuous sweep
+   crossing the whole layout instead of each block shimmering on its own.
+
+   Browsers that fall back to `scroll` (notably iOS Safari) still get the
+   sweep, just resolved per element — same look, no page-wide sync. */
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: calc(-1 * var(--skeleton-beam)) 0;
+  }
+  to {
+    background-position: 100vw 0;
+  }
+}
+
+@layer components {
+  .skeleton {
+    background-color: hsl(var(--skeleton-base));
+    background-image: linear-gradient(
+      var(--skeleton-tilt),
+      transparent 35%,
+      hsl(var(--skeleton-sheen) / var(--skeleton-sheen-opacity)) 50%,
+      transparent 65%
+    );
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: var(--skeleton-beam) 100%;
+    background-position: calc(-1 * var(--skeleton-beam)) 0;
+    animation: skeleton-sweep var(--skeleton-sweep) linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      background-image: none;
+      animation: none;
+    }
   }
 }

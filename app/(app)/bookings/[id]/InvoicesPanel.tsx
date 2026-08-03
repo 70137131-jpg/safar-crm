@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RowListSkeleton } from "@/components/common/LoadingSkeleton";
 
 export interface InvoiceCaps { canView: boolean; canCreate: boolean; canUpdate: boolean; canVoid: boolean }
 
@@ -54,7 +55,7 @@ export function InvoicesPanel({ bookingId, caps }: { bookingId: string; caps: In
           <Button onClick={create}>Issue invoice</Button>
         </div>
       ) : null}
-      {loading ? <div className="h-24 animate-pulse rounded-lg bg-muted" /> : items.length === 0 ? (
+      {loading ? <RowListSkeleton rows={2} /> : items.length === 0 ? (
         <EmptyState icon={<ReceiptText className="h-8 w-8" />} title="No invoices" description="Issue the first invoice for this booking." />
       ) : items.map((item) => (
         <div key={item.id} className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">

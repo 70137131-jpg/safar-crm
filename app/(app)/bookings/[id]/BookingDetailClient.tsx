@@ -25,6 +25,7 @@ import { formatPKR } from "@/lib/money/paisa";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
+import { TimelineSkeleton } from "@/components/common/LoadingSkeleton";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   Dialog,
@@ -358,11 +359,7 @@ function HistoryTab({ bookingId }: { bookingId: string }) {
 
   if (loading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />
-        ))}
-      </div>
+      <TimelineSkeleton rows={3} />
     );
   }
 

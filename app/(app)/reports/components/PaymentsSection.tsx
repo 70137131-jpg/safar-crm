@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 import { CreditCard, CheckCircle2, Clock, AlertTriangle, RotateCcw } from "lucide-react";
 import { StatCard, ChartWrapper } from "./ChartWrapper";
@@ -47,11 +48,9 @@ export function PaymentsSection({ filters }: Props) {
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-lg border bg-card p-5">
-              <div className="animate-pulse space-y-2">
-                <div className="h-3 w-20 rounded bg-muted" />
-                <div className="h-7 w-28 rounded bg-muted" />
-              </div>
+            <div key={i} className="bg-card rounded-lg border p-5 shadow-sm">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="mt-2 h-8 w-28" />
             </div>
           ))}
         </div>
