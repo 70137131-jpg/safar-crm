@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RowListSkeleton } from "@/components/common/LoadingSkeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   listTasksAction,
@@ -261,11 +262,7 @@ export function TaskListClient({
 
       {/* List */}
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
-          ))}
-        </div>
+        <RowListSkeleton rows={5} trailing="text" />
       ) : items.length === 0 ? (
         <EmptyState
           title="No tasks"

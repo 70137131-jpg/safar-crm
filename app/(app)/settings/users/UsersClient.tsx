@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/common/LoadingSkeleton";
 import {
   Dialog,
   DialogContent,
@@ -276,11 +276,7 @@ export function UsersClient({ canManage }: { canManage: boolean }) {
       </div>
 
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
+        <TableSkeleton columns={5} rows={5} />
       ) : data.length === 0 ? (
         <EmptyState title="No users found" description="Try different filters, or invite a new user." />
       ) : (

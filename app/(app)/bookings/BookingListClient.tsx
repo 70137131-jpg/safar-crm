@@ -311,7 +311,7 @@ export function BookingListClient() {
         </select>
       </div>
 
-      {loading && <TableSkeleton columns={6} rows={6} />}
+      {loading && <TableSkeleton columns={7} rows={6} />}
 
       {!loading && data.length === 0 && (
         <EmptyState

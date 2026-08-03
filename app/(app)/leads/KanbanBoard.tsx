@@ -8,6 +8,8 @@ import { formatPKR } from "@/lib/money/paisa";
 import { ERROR_CODES } from "@/lib/errors/codes";
 import { getKanbanAction, changeLeadStatusAction } from "@/modules/leads/leads.actions";
 import type { KanbanColumns, LeadListItem } from "@/modules/leads/leads.types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LeadCard } from "./LeadCard";
 import { useLeadMutations, LostReasonDialog, ConvertDialog } from "./leadActions";
 import { LEAD_STATUS_META, LEAD_STATUS_ORDER } from "./leadMeta";
@@ -136,7 +138,22 @@ export function KanbanBoard({ search }: { search: string }) {
               <div className="flex-1 space-y-2 p-2">
                 {loading ? (
                   Array.from({ length: 2 }).map((_, i) => (
-                    <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
+                    <Card key={i} className="shadow-sm">
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <Skeleton className="h-6 w-28" />
+                          <Skeleton className="h-7 w-7 shrink-0" />
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-28" />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <Skeleton className="h-4 w-16 rounded-full" />
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))
                 ) : items.length === 0 ? (
                   <p className="px-1 py-6 text-center text-xs text-muted-foreground">

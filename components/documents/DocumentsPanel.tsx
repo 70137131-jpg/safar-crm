@@ -17,6 +17,7 @@ import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge, type StatusTone } from "@/components/common/StatusBadge";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { DocumentDTO } from "@/modules/documents/documents.types";
 import {
   getDocumentsAction,
@@ -329,9 +330,7 @@ export function DocumentsPanel({
       )}
 
       {loading ? (
-        <div className="text-muted-foreground flex items-center justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
+        <DocumentsSkeleton />
       ) : docs.length === 0 ? (
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
@@ -373,6 +372,70 @@ function CategorizedList({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Loading placeholder for <DocumentList>. This panel's table breaks at `sm`
+ * (not `md`) and uses its own row metrics, so it can't reuse the shared
+ * TableSkeleton — the markup below mirrors DocumentList column for column.
+ */
+function DocumentsSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <>
+      {/* Mobile: cards */}
+      <ul className="space-y-3 sm:hidden">
+        {Array.from({ length: rows }).map((_, i) => (
+          <li key={i} className="bg-card rounded-lg border p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <Skeleton className="h-4 w-4 shrink-0" />
+                <Skeleton className="h-5 w-40" />
+              </div>
+              <Skeleton className="h-[22px] w-20 shrink-0 rounded-full" />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-x-auto rounded-lg border sm:block">
+        <div className="bg-muted/50 flex items-center gap-4 border-b px-4 py-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-4 flex-1" />
+          ))}
+          <Skeleton className="h-4 w-16 shrink-0" />
+        </div>
+        {Array.from({ length: rows }).map((_, r) => (
+          <div
+            key={r}
+            className="flex items-center gap-4 border-b px-4 py-2 last:border-0"
+          >
+            <div className="flex flex-1 items-center gap-2">
+              <Skeleton className="h-4 w-4 shrink-0" />
+              <Skeleton className="h-5 flex-1" />
+            </div>
+            <Skeleton className="h-[22px] flex-1 rounded-full" />
+            <Skeleton className="h-5 flex-1" />
+            <Skeleton className="h-5 flex-1" />
+            <Skeleton className="h-5 flex-1" />
+            <Skeleton className="h-5 flex-1" />
+            <Skeleton className="h-5 w-16 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

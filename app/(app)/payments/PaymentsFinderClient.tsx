@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { formatPKR } from "@/lib/money/paisa";
 import { SearchInput } from "@/components/common/SearchInput";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RowListSkeleton } from "@/components/common/LoadingSkeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { listBookingsAction } from "@/modules/bookings/bookings.actions";
 import type { BookingListItem } from "@/modules/bookings/bookings.types";
@@ -55,11 +56,7 @@ export function PaymentsFinderClient() {
       </div>
 
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
-          ))}
-        </div>
+        <RowListSkeleton rows={5} />
       ) : items.length === 0 ? (
         <EmptyState
           title="No bookings found"

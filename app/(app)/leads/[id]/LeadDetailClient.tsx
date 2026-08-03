@@ -26,6 +26,8 @@ import { formatPKR } from "@/lib/money/paisa";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { EmptyState } from "@/components/common/EmptyState";
+import { TimelineSkeleton } from "@/components/common/LoadingSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   createInteractionAction,
   listInteractionsByLeadAction,
@@ -292,11 +294,21 @@ function InteractionsTab({ leadId }: { leadId: string }) {
       </form>
 
       {loading ? (
-        <div className="space-y-2">
+        <ul className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />
+            <li key={i} className="bg-card flex gap-3 rounded-lg border p-3">
+              <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+                <Skeleton className="mt-1 h-5 w-4/5" />
+                <Skeleton className="mt-1 h-4 w-24" />
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       ) : items.length === 0 ? (
         <EmptyState
           icon={<MessageCircle className="h-8 w-8" />}
@@ -357,11 +369,7 @@ function HistoryTab({ leadId }: { leadId: string }) {
 
   if (loading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />
-        ))}
-      </div>
+      <TimelineSkeleton rows={3} />
     );
   }
 

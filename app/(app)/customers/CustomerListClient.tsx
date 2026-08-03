@@ -427,7 +427,7 @@ export function CustomerListClient() {
       </div>
 
       {/* Loading state */}
-      {loading && <TableSkeleton columns={6} rows={6} />}
+      {loading && <TableSkeleton columns={8} rows={6} />}
 
       {/* Empty state */}
       {!loading && data.length === 0 && (

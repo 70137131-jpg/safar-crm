@@ -9,6 +9,7 @@ import { formatPKR, toPKR } from "@/lib/money/paisa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/common/EmptyState";
+import { RowListSkeleton } from "@/components/common/LoadingSkeleton";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   Dialog,
@@ -163,11 +164,7 @@ export function PaymentsPanel({
 
       {/* Ledger */}
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
-          ))}
-        </div>
+        <RowListSkeleton rows={3} />
       ) : payments.length === 0 ? (
         <EmptyState
           icon={<Wallet className="h-8 w-8" />}

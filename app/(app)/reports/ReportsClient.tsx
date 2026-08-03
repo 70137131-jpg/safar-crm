@@ -27,7 +27,29 @@ import type { ReportType } from "@/modules/reports/report.types";
  * fine here — ReportsClient is already a Client Component. (AgentSection and
  * PaymentsSection are table-only and stay statically imported.)
  */
-const sectionLoading = () => <LoadingSkeleton className="h-[400px] w-full" />;
+/**
+ * Fallback while a section's chunk downloads. Deliberately identical to the
+ * loading state each section renders once it has mounted (stat cards over a
+ * chart), so arriving code doesn't reshuffle the page.
+ */
+const sectionLoading = () => (
+  <div className="space-y-6">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="bg-card rounded-lg border p-5 shadow-sm">
+          <LoadingSkeleton className="h-4 w-20" />
+          <LoadingSkeleton className="mt-2 h-8 w-28" />
+        </div>
+      ))}
+    </div>
+    <div className="bg-card rounded-lg border p-6">
+      <div className="space-y-4">
+        <LoadingSkeleton className="h-4 w-32" />
+        <LoadingSkeleton className="h-[260px]" />
+      </div>
+    </div>
+  </div>
+);
 const RevenueSection = dynamic(
   () => import("./components/RevenueSection").then((m) => m.RevenueSection),
   { ssr: false, loading: sectionLoading },
